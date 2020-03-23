@@ -4,5 +4,5 @@ https://neort.io/art/bpn0lps3p9fbkbq84fdg
 ## install
 ```npm install```
 
-### build
+## build
 ```npm run build```

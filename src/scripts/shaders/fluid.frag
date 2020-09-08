@@ -2,268 +2,209 @@ precision highp float;
 
 uniform float u_time;
 uniform vec2  u_resolution;
-uniform int depthBool;//0 == false, 1 == true
 
 vec2 resolution=u_resolution;
 float time=u_time;
 
 float pi=acos(-1.);
 
-mat2 rot(float a)
-{
-    float c=cos(a),s=sin(a);
-    return mat2(c,s,-s,c);
+//https://www.shadertoy.com/view/4s23WK
+
+vec2 Rot(vec2 p, float t) {
+	float c = cos(t); float s = sin(t);
+	return vec2(p.x*c+p.y*s,
+				-p.x*s+p.y*c);
+}
+vec2 RotCS(vec2 p, float c, float s) {
+	return vec2( p.x*c+p.y*s,
+				-p.x*s+p.y*c);
 }
 
-float box(vec3 p,vec3 r)
-{
-    p=abs(p)-r;
-    return max(max(p.x,p.y),p.z);
+
+vec3 random3(vec3 c) {
+	float j = 4096.0*sin(dot(c,vec3(17.0, 59.4, 15.0)));
+	vec3 r;
+	r.z = fract(512.0*j);
+	j *= .125;
+	r.x = fract(512.0*j);
+	j *= .125;
+	r.y = fract(512.0*j);
+	r = r-0.5;
+	
+	//rotate for extra flow!
+	float t = -time*.5;
+	r.xy = Rot(r.xy,t);
+
+	return r;
 }
 
-float sphere(vec3 p, float r)
-{
-    float d = length(p) - r;
-    return d;
+/* skew constants for 3d simplex functions */
+const float F3 =  0.3333333;
+const float G3 =  0.1666667;
+
+/* 3d simplex noise */
+float noise(vec3 p) {
+	 /* 1. find current tetrahedron T and its four vertices */
+	 /* s, s+i1, s+i2, s+1.0 - absolute skewed (integer) coordinates of T vertices */
+	 /* x, x1, x2, x3 - unskewed coordinates of p relative to each of T vertices*/
+	 
+	 /* calculate s and x */
+	 vec3 s = floor(p + dot(p, vec3(F3)));
+	 vec3 x = p - s + dot(s, vec3(G3));
+	 
+	 /* calculate i1 and i2 */
+	 vec3 e = step(vec3(0.0), x - x.yzx);
+	 vec3 i1 = e*(1.0 - e.zxy);
+	 vec3 i2 = 1.0 - e.zxy*(1.0 - e);
+	 	
+	 /* x1, x2, x3 */
+	 vec3 x1 = x - i1 + G3;
+	 vec3 x2 = x - i2 + 2.0*G3;
+	 vec3 x3 = x - 1.0 + 3.0*G3;
+	 	
+	 /* 2. find four surflets and store them in d */
+	 vec4 w, d;
+	 
+	 /* calculate surflet weights */
+	 w.x = dot(x, x);
+	 w.y = dot(x1, x1);
+	 w.z = dot(x2, x2);
+	 w.w = dot(x3, x3);
+	 
+	 /* w fades from 0.6 at the center of the surflet to 0.0 at the margin */
+	 w = max(0.6 - w, 0.0);
+	 
+	 /* calculate surflet components */
+	 d.x = dot(random3(s), x);
+	 d.y = dot(random3(s + i1), x1);
+	 d.z = dot(random3(s + i2), x2);
+	 d.w = dot(random3(s + 1.0), x3);
+	 
+	 /* multiply d by w^4 */
+	 w *= w;
+	 w *= w;
+	 d *= w;
+	 
+	 /* 3. return the sum of the four surflets */
+	 return dot(d, vec4(52.0));
 }
 
-vec3 rep(vec3 p,float r)
+
+//iq 2d simplex noise
+
+vec2 hash( vec2 p )
 {
-    return mod(p,r)-.5*r;
+	p = vec2( dot(p,vec2(127.1,311.7)),
+			  dot(p,vec2(269.5,183.3)) );
+
+	vec2 h = -1.0 + 2.0*fract(sin(p)*43758.5453123);
+
+#if 1	
+	//extra rotations for more flow!
+	float t = -time*0.7;
+	float co = cos(t); float si = sin(t);	
+	h = RotCS(h,co,si);
+#endif
+	return h;
 }
 
-float ifsbox(vec3 p)
+
+float noise( in vec2 p )
 {
-    for(int i=0;i<3;i++)
-    {
-        p=abs(p)-2.;
-    }
-    return box(rep(p,9.),vec3(1.,4.,3.));
+    const float K1 = 0.366025404; // (sqrt(3)-1)/2;
+    const float K2 = 0.211324865; // (3-sqrt(3))/6;
+
+	vec2 i = floor( p + (p.x+p.y)*K1 );
+	
+    vec2 a = p - i + (i.x+i.y)*K2;
+    vec2 o = (a.x>a.y) ? vec2(1.0,0.0) : vec2(0.0,1.0); //vec2 of = 0.5 + 0.5*vec2(sign(a.x-a.y), sign(a.y-a.x));
+    vec2 b = a - o + K2;
+	vec2 c = a - 1.0 + 2.0*K2;
+
+#if 1	
+	//even more extra rotations for more flow!
+	float t = time*.5;
+	float co = cos(t); float si = sin(t);	
+	a = RotCS(a,co,si);
+	b = RotCS(b,co,si);
+	c = RotCS(c,co,si);
+#endif
+	
+    vec3 h = max( 0.5-vec3(dot(a,a), dot(b,b), dot(c,c) ), 0.0 );
+
+	vec3 n = h*h*h*h*vec3( dot(a,hash(i+0.0)), dot(b,hash(i+o)), dot(c,hash(i+1.0)));
+
+    return dot( n, vec3(70.0) );
+	
 }
 
-vec3 hsv(float h,float s,float v)
+float pot(vec2 pos)
 {
-    return((clamp(abs(fract(h+vec3(0.,2.,1.)/3.)*6.-3.)-1.,0.,1.)-1.)*s+1.)*v;
+	float t = time*.1;
+
+	vec3 p = vec3(pos+vec2(time*.4,0.),t);
+	
+	float n = noise(p);
+	n += 0.5 *noise(p*2.13);
+	n += 3. * noise(pos*0.333);
+	
+	return n;
 }
 
-//ref: https://www.iquilezles.org/www/articles/distfunctions/distfunctions.htm
-float displacement(vec3 p, vec3 v) 
+vec2 field(vec2 pos)
 {
-  return sin(v.x * p.x) * sin(v.y * p.y) * sin(v.z * p.z);
-}
-
-vec3 camOffset = vec3(7.2 * 0.8 + cos(time) * 0.2, -0. * -0.1 + sin(time) * 0.5, 1.9);
-
-float spDisplace(vec3 p, float size, vec3 v)
-{
-    p += camOffset;
-    float d1 = sphere(p, size);
-    float d2 = displacement(p, v);
-    return d1+d2;
-}
-
-float rootSpeed = time  * 30.;
-
-float sceneHeart(vec3 p, float size)
-{
-    float d;
-    p.z -= rootSpeed;
-    p.z -= 5.;
-
-    float d1 = sphere(p + vec3(3. + cos(time), 0.5 - 0.5*sin(time),0.), size * 0.8);
-    float d2 = spDisplace(p, size, vec3(10, 10,10.));//sphere(p, size);
-
-    d = mix(d1, d2, smoothstep(0.3, 0.7, sin(u_time / 1.5)));
-
-    return d;
-}
-
-vec3 repz(vec3 p,float r)
-{
-    p.z = mod(p.z, r) - 0.5 * r;
-    return p;
-}
-
-vec3 ifsPos(vec3 p)
-{
-    for(int i=0;i<3;i++)
-    {
-        p = abs(p) - 0.5;
-        p.xy *= rot(0.7);
-        // p.zx *= rot(0.8);
-    }
-    return p;
-}
-
-float load(vec3 p)
-{
-    float d;
-
-    vec2 s1 = vec2(5., 0.15);
-    vec2 s2 = vec2(5., 0.05);
-    vec2 s3 = vec2(8., 1.5);
-
-    vec3 p1;
-    p1 = abs(p);
-    p1.x -= 1.5;
-    p1.y += 0.3;
-    p1.xy *= rot(0.25 * pi);
-
-    vec3 p2;
-    p2 = abs(p);
-    float dx = box(rep(p1, 7.), vec3(s1.xyy));
-    float dy = box(rep(p1, 6.), vec3(s1.yxy));
-    float dz = box(rep(p2, 112.), vec3(s2.yyx));
-
-    vec3 p3;
-    p3 = p;
-    p3.xy *= rot(0.5 * pi);
-    float dx_a = box(rep(p3, 9.), vec3(s1.xyy));
-    float dy_a = box(rep(p3, 5.), vec3(s1.yxy));
-    float dz_a = box(rep(p3, 82.), vec3(s1.yyx));
-
-    vec3 p4 = p;
-    // p4.xy *= 4.;
-    p4.x += sin(p4.z + time) * .8;
-    p4.y += cos(p4.z + time) * .8;
-    float d4 = length(p4.xy) - abs(sin(time)) * 0.1;
-
-    vec3 p5 = p;
-    p5 = abs(p5);
-    p5.x += 0.3 * sin(time * 2.) + 5.;
-    p5.y += 0.;
-    float dx_b = box(rep(p5, 9.), vec3(s3.xyy));
-    float dy_b = box(rep(p5, 5.), vec3(s3.yxy));
-    float dz_b = box(rep(p5, 5.), vec3(s3.yyx));
-    
-    float d1 = dx;
-    d1 = min(d1, dy);
-    d1 = min(d1, dz);
-
-    float d2 = dx_a;
-    d2 = min(d2, dy_a);
-    d2 = min(d2, dz_a);
-
-    float d3 = dx_b;
-    d3 = min(d3, dy_b);
-    d3 = min(d3, dz_b);
-
-    d = min(d1, d2);
-    d = max(d, d3);
-    // d = min(d, d4);
-
-    return d;
-}
-
-float sceneLoad(vec3 p)
-{
-    float d;
-
-    d = load(p);//load(ifsPos(p));
-    // d = min(d, particle(p, 0.5, 3.));
-    // d = min(d, particle(p, 3., 1.));
-    
-    return d;
-}
-
-float map(vec3 p)
-{
-    float m;
-
-    float t = u_time / 2.;
-    float tt = t - floor(t);
-    float size = exp(abs(tt - 0.5) * -1. * 15.)/5.;
-    size += 2.;
-
-    float dh = sceneHeart(p, size);
-    float dl = sceneLoad(p);
-
-    m = min(dh, dl);
-    // m= dl;
-
-    return m;
-}
-
-vec3 fog(vec3 col, vec3 fogCol, float dist, float val) 
-{
-    float value = 1. - exp(-1. * dist * val);
-    return mix(col, fogCol, value);
-}
-
-vec3 rayMarching(vec3 ro, vec3 rd) 
-{
-    vec3 rayCol;
-    ro.z += rootSpeed;
-
-    float sceneDist;
-    float rayDepth = 0.;
-
-    for(int i = 0; i < 100; i++) 
-    {
-        sceneDist = map(ro + rd * rayDepth);
-
-        if(sceneDist < 0.001) 
-        {
-            break;
-        }
-
-        rayDepth += sceneDist;
-    }
-
-    if(rayDepth > 80.) 
-    {
-        vec3 bgCol = vec3(0.);
-        vec3 d_bgCol = vec3(0.);
-
-        if(depthBool == 1)
-        {
-            rayCol = d_bgCol;
-        }else{
-            rayCol = bgCol;
-        }
-        
-        return rayCol;
-    }
-
-    vec3 rayPos = ro + rd * rayDepth;
-
-    rayCol = vec3(1.);
-    rayCol = fog(rayCol, vec3(0.0, 0.0, 0.0), rayDepth, 0.07);
-
-    float d = 20. / rayDepth * 0.8 ;
-    vec3 depthCol = vec3(1.) * d;
-
-    vec3 mainCol;
-    if(depthBool == 1)
-    {
-        mainCol = depthCol;
-    }else{
-        mainCol = rayCol;
-    }
-
-    return mainCol;
+	float s = 1.5;
+	pos *= s;
+	
+	float n = pot(pos);
+	
+	float e = 0.1;
+	float nx = pot(vec2(pos+vec2(e,0.)));
+	float ny = pot(vec2(pos+vec2(0.,e)));
+	
+	return vec2(-(ny-n),nx-n)/e;
 }
 
 void main()
 {
     vec2 p = (gl_FragCoord.xy * 2. - resolution) / min(resolution.x, resolution.y);
     
-    vec3 ro = vec3(0., 0., -25.);
-    ro += camOffset;
-
-    vec3 ta = vec3(0.);
-
-    vec3 z = normalize(ta - ro);
-    vec3 up = vec3(0., 1., 0.);
-
-    vec3 x = normalize(cross(z, up));
-    vec3 y = normalize(cross(x, z));
-
-    vec3 rd = normalize(x * p.x + y * p.y + z * 2.5);
-
-    vec3 c = rayMarching(ro, rd);
-
     vec3 col = 0.5 + 0.5*cos(time+p.xyx+vec3(0,2,4));
+    vec3 col_2 = 0.8 + 0.5*cos(time+p.xyx+vec3(1,cos(time),3));
 
-    gl_FragColor=vec4(col, 1.);
+    // gl_FragColor=vec4(col_2, 1.);
+
+    ////////////
+
+	float lod = 0.;
+	
+	vec2 uv = gl_FragCoord.xy;
+	uv /= resolution.xy;
+	uv.x *= resolution.x/resolution.y;
+	uv.y = 1. - uv.y;
+	vec2 src_uv = uv;
+	
+	vec3 d = vec3(0.);
+	vec3 e = vec3(0.);
+	for (int i=0; i<25; i++)
+	{
+		d += 0.5 + 0.5*cos(time+p.xyx+vec3(0,2,4)+lod);;//texture(iChannel0,uv+iTime*0.05,lod).xyz;
+		e += 0.8 + 0.5*cos(time+p.xyx+vec3(1,cos(time),3)+lod);//texture(iChannel0,-uv.yx*3.+iTime*0.0125,lod).xyz;
+		
+		vec2 new_uv = field(uv)*.00625*.5;
+	
+		lod += length(new_uv)*5.;
+		uv += new_uv;
+	}
+	
+
+	vec3 c = col;//texture(iChannel0,uv*.1+iTime*0.025,lod).xyz;
+
+	d *= (1./50.);
+	e *= (1./50.);
+	c = mix(c,d,length(d));
+	c = mix(c,e,length(e));
+
+	gl_FragColor = vec4( c,1.);
 }
+

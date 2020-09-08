@@ -169,7 +169,7 @@ void main()
 {
     vec2 p = (gl_FragCoord.xy * 2. - resolution) / min(resolution.x, resolution.y);
     
-    vec3 col = 0.5 + 0.5*cos(time+p.xyx+vec3(0,2,4));
+    vec3 col = vec3(1.);//0.5 + 0.5*cos(time+p.xyx+vec3(0,2,4));
     vec3 col_2 = 0.8 + 0.5*cos(time+p.xyx+vec3(1,cos(time),3));
 
     // gl_FragColor=vec4(col_2, 1.);

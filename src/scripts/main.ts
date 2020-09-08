@@ -1,9 +1,10 @@
 import {PureRaymarch} from './gl';
+import {klab} from './gl';
 import '../styles/index.scss';
 
 const canvas = <HTMLCanvasElement>document.getElementById("glCanvas");
 
-let pr = new PureRaymarch(canvas);
+let pr = new klab(canvas);//new PureRaymarch(canvas);
 
 pr.init();
 

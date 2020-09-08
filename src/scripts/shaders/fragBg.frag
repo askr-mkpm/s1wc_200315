@@ -43,6 +43,9 @@ void main()
 
     vec3 c = mix(vec3(0.9), color, 0.15);
 
-    vec4 col = vec4(c,1.);//vec4(uv.x, uv.y,1.,1.);
+    vec4 col = vec4(uv.x, uv.y,1.,1.);
+    // vec3 c = 0.5 + 0.5*cos(time+uv.xyx+vec3(0,2,4));
+
+
     gl_FragColor = col;
 }

@@ -278,6 +278,7 @@ export class PureRaymarch
             renders1quad(s2_NoiseBuffer.f, s1_mainBuffer.t, cw, ch);
             renderNoise(mainBuffer.f, s2_NoiseBuffer.t, cw, ch);
             renderMain(null, mainBuffer.t);
+            // renderMain(null, .t);
 
             gl.flush();
 

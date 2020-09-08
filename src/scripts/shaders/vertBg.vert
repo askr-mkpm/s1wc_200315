@@ -1,7 +1,9 @@
 attribute vec3 position;
 
 uniform mat4 mvpMatrix;
-uniform vec2 resolution;
+uniform vec2 u_resolution;
+
+vec2 resolution = u_resolution;
 
 void main(void)
 {

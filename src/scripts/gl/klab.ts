@@ -69,8 +69,8 @@ export class klab
             pb.setAttribute(s2_bgPrg, quadVboList, 'position', 3);
 
             pb.uniformMatrix4fv(s2_bgPrg, 'mvpMatrix', mvpMatrix);
-            pb.uniform2fv(s2_bgPrg, 'resolution',[width, height]); 
-            pb.uniform1f(s2_bgPrg, 'time',time);
+            pb.uniform2fv(s2_bgPrg, 'u_resolution',[width, height]); 
+            pb.uniform1f(s2_bgPrg, 'u_time',time);
 
             m.identity(mMatrix);
             m.multiply(tmpMatrix, mMatrix, mvpMatrix);

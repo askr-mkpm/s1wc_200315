@@ -1,7 +1,10 @@
 precision highp float;
 
-uniform vec2 resolution;
-uniform float time;
+uniform vec2 u_resolution;
+uniform float u_time;
+
+vec2 resolution = u_resolution;
+float time = u_time;
 
 vec2 rand(vec2 co)
 {

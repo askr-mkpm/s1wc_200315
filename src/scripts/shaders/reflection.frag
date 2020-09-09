@@ -5,7 +5,6 @@ uniform float u_time;
 
 float pi=acos(-1.);
 
-#define MULTI_REFRACTION
 
 float sphere(vec3 p, float r) {
 	return length(p) - r;

@@ -5,6 +5,7 @@ import {minPrimitive} from './libs';
 import vertQuad from '../shaders/vertQuad.vert';
 import vertBg from '../shaders/vertBg.vert';
 import fragBg from '../shaders/fragBg.frag';
+import fakeFluid from '../shaders/fakefluid.frag';
 import fragNoise from '../shaders/fragNoise.frag';
 import fluid from '../shaders/fluid.frag';
 
@@ -35,7 +36,7 @@ export class klab
         gl.getExtension('OES_float_linear');
         gl.getExtension('OES_texture_half_float');
 
-        s2_bgPrg = pb.createProgram(vertBg, fragBg);
+        s2_bgPrg = pb.createProgram(vertBg, fakeFluid);
         s2_noisePrg = pb.createProgram(vertQuad, fragNoise);
     }
 

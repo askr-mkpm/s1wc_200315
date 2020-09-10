@@ -7,9 +7,9 @@ precision highp float;
 uniform vec2  u_resolution;
 uniform float u_time;
 
-#define CUBEMAP_SIZE 128
+//---
 
-float pi=acos(-1.);
+const float pi = acos(-1.);
 
 mat2 rot(float a)
 {
@@ -17,20 +17,27 @@ mat2 rot(float a)
     return mat2(c,s,-s,c);
 }
 
+vec3 rep(vec3 p,float r)
+{
+    return mod(p,r)-.5*r;
+}
+
+vec3 hsv(float h,float s,float v)
+{
+    return((clamp(abs(fract(h+vec3(0.,2.,1.)/3.)*6.-3.)-1.,0.,1.)-1.)*s+1.)*v;
+}
+
 float rand(vec3 n)
 { 
     return fract(sin(dot(n, vec3(12.9898, 4.1414,14.6313))) * 43758.5453);
 }
 
+//---
+
 float random (in vec2 st) {
     return fract(sin(dot(st.xy,
                          vec2(12.9898,78.233)))*
         43758.5453123);
-}
-
-float sdSphere(vec3 p, float s)
-{
-    return length(p) - s;
 }
 
 float hash( float n )
@@ -78,19 +85,26 @@ float noise_ (in vec2 st) {
 }
 
 #define OCTAVES 6
-float fbm (in vec2 st) {
-    // Initial values
+float fbm (in vec2 st) 
+{
     float value = 0.0;
     float amplitude = .5;
     float frequency = 0.;
-    //
-    // Loop of octaves
-    for (int i = 0; i < OCTAVES; i++) {
+
+    for (int i = 0; i < OCTAVES; i++) 
+	{
         value += amplitude * noise_(st);
         st *= 2.;
         amplitude *= .5;
     }
     return value;
+}
+
+//---
+
+float sdSphere(vec3 p, float s)
+{
+    return length(p) - s;
 }
 
 //https://www.shadertoy.com/view/ld3SDl
@@ -111,6 +125,7 @@ float randBubble(vec3 p)
     float e = step(0.9,rand(i));
     float s = 0.2 + 0.8*rand(i.zyx+3.0);
     return sdSphere(q, 2.0*e*s);
+	// return sdBubble(q, 2.0*e*s);
 }
 
 float sdBox( vec3 p, vec3 b )
@@ -124,61 +139,26 @@ float sdCylinder( vec3 p, vec3 c )
   return length(p.xz-c.xy)-c.z;
 }
 
-vec3 ground(vec3 ro, vec3 rd, float h) 
-{
-	vec2 p = (gl_FragCoord.xy * 2. - u_resolution) / min(u_resolution.x, u_resolution.y);
-
-	if (rd.y > 0.0) {
-		return  0.8 + 0.5*cos(u_time+p.xyx+vec3(1,cos(u_time),3))+0.2;
-	}
-	float d = (ro.y - h) / rd.y;
-	vec2 uv = ro.xz + d * rd.xz;
-	float l = length(d * rd.xz);
-	// return (sin(uv.x * 5.0) * sin(uv.y * 5.0) > 0.0 ? vec3(1.0, 1.0, 1.0) : vec3(0.3961, 0.7333, 0.8196)) * (1.3 - smoothstep(0.0, 120.0, l));
-	return 0.8 + 0.5*cos(u_time+p.xyx+vec3(1,cos(u_time),3))+0.2;
-}
-
-vec3 DiffuseColor (vec3 pos)
-{
-	// checkerboard pattern
-    return vec3(mod(floor(pos.x * 10.0) + floor(pos.y * 10.0), 2.0) < 1.0 ? 1.0 : 0.4);
-}
-
-vec3 rep(vec3 p,float r)
-{
-    return mod(p,r)-.5*r;
-}
-
-vec3 hsv(float h,float s,float v)
-{
-    return((clamp(abs(fract(h+vec3(0.,2.,1.)/3.)*6.-3.)-1.,0.,1.)-1.)*s+1.)*v;
-}
-
-/////----------
-
-float rI = 1.5;
-vec3 lightDir = normalize(vec3(1.0, 1.0, 1.0));
-vec3 lightColor = vec3(2.0);
-vec3 substanceColor = vec3(0.90, 0.95, 1.0);
+//---
 
 float map(vec3 p)
 {
-	// return sdBubble(p, 3.);
-	// return sdSphere(p, 3.);
-	return randBubble(p);
+	float d;
+	d = randBubble(p);
+	return d;
 }
 
 float samplingMap(vec3 p)
 {
 	float d;
-	p.xz *= rot(u_time * 0.1);
-	p.yx *= rot(u_time * 0.1);
 	float b = sdBox(p-vec3(5.), vec3(2.0));
 	float c = sdCylinder(p, vec3(1.));
-	d = min(b,c);
+	d = c;
 
 	return d;
 }
+
+//---
 
 vec3 getNormal(vec3 p)
 {
@@ -190,6 +170,11 @@ vec3 getNormal(vec3 p)
         map(p + vec3(z, d)) - map(p + vec3(z, -d))
     ));
 }
+
+float rI = 1.5;
+vec3 lightDir = normalize(vec3(1.0, 1.0, 1.0));
+vec3 lightColor = vec3(2.0);
+vec3 substanceColor = vec3(0.90, 0.95, 1.0);
 
 vec3 sky(vec3 lightDir, vec3 rd, vec3 ro)
 {
@@ -239,7 +224,7 @@ vec3 samplingMarch(vec3 ro, vec3 rd)
 		
 		if (dist < 0.00001) 
 		{
-			sampleCol = DiffuseColor(rayPos);
+			sampleCol = vec3(1.);
 		}
 
 		rayDepth += dist;
@@ -311,7 +296,7 @@ void main( void )
 {
 	vec2 p = (gl_FragCoord.xy * 2.- u_resolution) / min(u_resolution.y, u_resolution.x);
 
-	vec3 camOffset = vec3(10.0 * cos(u_time * 0.2), 5.0 * sin(u_time * 0.3) + 3.0, 10.0 * sin(u_time * 0.2));
+	vec3 camOffset = vec3(10.0 * cos(u_time * 0.2), 15.0 * sin(u_time * 0.3) + 3.0, 10.0 * sin(u_time * 0.2));
     vec3 ro = vec3(0.,0.,-15);
 	ro += camOffset;
     vec3 ta = vec3(0.);

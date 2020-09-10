@@ -307,5 +307,10 @@ void main( void )
 
 	vec3 col = march(ro, rd);
 
+	//vignette
+    float vg = pow(sqrt(dot(p,p)) * 0.4,2.)+1.;
+    float vig = 1.0 / pow(vg,2.);
+	col *= vig;
+
 	gl_FragColor = vec4(col, 1.);
 }

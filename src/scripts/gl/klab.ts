@@ -9,6 +9,7 @@ import fakeFluid from '../shaders/fakefluid.frag';
 import reflection from '../shaders/reflection.frag';
 import fragNoise from '../shaders/fragNoise.frag';
 import fluid from '../shaders/fluid.frag';
+import bubble from '../shaders/bubble.frag';
 
 const m = new matIV();
 const mp = new minPrimitive();
@@ -37,7 +38,7 @@ export class klab
         gl.getExtension('OES_float_linear');
         gl.getExtension('OES_texture_half_float');
 
-        s2_bgPrg = pb.createProgram(vertBg, reflection);
+        s2_bgPrg = pb.createProgram(vertBg, bubble);
         s2_noisePrg = pb.createProgram(vertQuad, fragNoise);
     }
 
@@ -73,7 +74,7 @@ export class klab
             pb.uniformMatrix4fv(s2_bgPrg, 'mvpMatrix', mvpMatrix);
             pb.uniform2fv(s2_bgPrg, 'u_resolution',[width, height]); 
             pb.uniform1f(s2_bgPrg, 'u_time',time);
-
+            
             m.identity(mMatrix);
             m.multiply(tmpMatrix, mMatrix, mvpMatrix);
 

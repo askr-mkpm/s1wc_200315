@@ -6,6 +6,9 @@ precision highp float;
 
 uniform vec2  u_resolution;
 uniform float u_time;
+uniform samplerCube cubeTexture;
+
+#define CUBEMAP_SIZE 128
 
 float pi=acos(-1.);
 
@@ -91,7 +94,8 @@ vec3 ground(vec3 ro, vec3 rd, float h)
 	float d = (ro.y - h) / rd.y;
 	vec2 uv = ro.xz + d * rd.xz;
 	float l = length(d * rd.xz);
-	return (sin(uv.x * 5.0) * sin(uv.y * 5.0) > 0.0 ? vec3(1.0, 1.0, 1.0) : vec3(0.3961, 0.7333, 0.8196)) * (1.3 - smoothstep(0.0, 120.0, l));
+	// return (sin(uv.x * 5.0) * sin(uv.y * 5.0) > 0.0 ? vec3(1.0, 1.0, 1.0) : vec3(0.3961, 0.7333, 0.8196)) * (1.3 - smoothstep(0.0, 120.0, l));
+	return 0.8 + 0.5*cos(u_time+p.xyx+vec3(1,cos(u_time),3))+0.2;
 }
 
 vec3 DiffuseColor (vec3 pos)

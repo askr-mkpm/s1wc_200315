@@ -245,7 +245,6 @@ float schlickFresnel(float ri, float cosine)
 
 vec3 march(vec3 ro, vec3 rd)
 {
-	vec3 rayCol = vec3(0.);
 	float dist;
 	float rayDepth = 0.;
 	

@@ -6,7 +6,6 @@ precision highp float;
 
 uniform vec2  u_resolution;
 uniform float u_time;
-uniform samplerCube cubeTexture;
 
 #define CUBEMAP_SIZE 128
 
@@ -21,6 +20,12 @@ mat2 rot(float a)
 float rand(vec3 n)
 { 
     return fract(sin(dot(n, vec3(12.9898, 4.1414,14.6313))) * 43758.5453);
+}
+
+float random (in vec2 st) {
+    return fract(sin(dot(st.xy,
+                         vec2(12.9898,78.233)))*
+        43758.5453123);
 }
 
 float sdSphere(vec3 p, float s)
@@ -51,6 +56,41 @@ vec3 noise3(vec3 x)
 	return vec3( noise(x+vec3(123.456,.567,.37)),
 				 noise(x+vec3(.11,47.43,19.17)),
 				 noise(x) );
+}
+
+// Based on Morgan McGuire @morgan3d
+// https://www.shadertoy.com/view/4dS3Wd
+float noise_ (in vec2 st) {
+    vec2 i = floor(st);
+    vec2 f = fract(st);
+
+    // Four corners in 2D of a tile
+    float a = random(i);
+    float b = random(i + vec2(1.0, 0.0));
+    float c = random(i + vec2(0.0, 1.0));
+    float d = random(i + vec2(1.0, 1.0));
+
+    vec2 u = f * f * (3.0 - 2.0 * f);
+
+    return mix(a, b, u.x) +
+            (c - a)* u.y * (1.0 - u.x) +
+            (d - b) * u.x * u.y;
+}
+
+#define OCTAVES 6
+float fbm (in vec2 st) {
+    // Initial values
+    float value = 0.0;
+    float amplitude = .5;
+    float frequency = 0.;
+    //
+    // Loop of octaves
+    for (int i = 0; i < OCTAVES; i++) {
+        value += amplitude * noise_(st);
+        st *= 2.;
+        amplitude *= .5;
+    }
+    return value;
 }
 
 //https://www.shadertoy.com/view/ld3SDl
@@ -116,6 +156,11 @@ vec3 hsv(float h,float s,float v)
 
 /////----------
 
+float rI = 1.5;
+vec3 lightDir = normalize(vec3(1.0, 1.0, 1.0));
+vec3 lightColor = vec3(2.0);
+vec3 substanceColor = vec3(0.90, 0.95, 1.0);
+
 float map(vec3 p)
 {
 	// return sdBubble(p, 3.);
@@ -146,12 +191,46 @@ vec3 getNormal(vec3 p)
     ));
 }
 
+vec3 sky(vec3 lightDir, vec3 rd, vec3 ro)
+{
+	vec3 col;
+	float sundot = clamp(dot(rd,lightDir),0.0,1.0);
+
+	vec3 blueSky = vec3(0.3,.55,0.8);
+	vec3 redSky = vec3(0.8,0.8,0.6);
+	
+	vec3 sky = mix(blueSky, redSky, 1.5*pow(sundot, 8.));
+	
+	col =  sky*(1.0-0.8*rd.y);
+
+	col += 0.1*vec3(0.9, 0.3, 0.9)*pow(sundot, 0.5);
+	col += 0.2*vec3(1., 0.7, 0.7)*pow(sundot, 1.);
+	col += 0.95*vec3(1.)*pow(sundot, 256.);
+
+	col = mix( col, 0.9*vec3(0.9,0.75,0.8), pow( 1.-max(rd.y+0.1,0.0), 8.0));
+
+	// clouds
+	float cloudSpeed = 0.01;
+	float cloudFlux = .5;
+	
+	// layer 1
+	vec3 cloudColour = mix(vec3(1.0, 1.0, 1.0), 0.35*redSky,pow(sundot, 2.));
+	
+	vec2 sc = cloudSpeed * 50.*u_time * ro.xz + rd.xz*(1000.0-ro.y)/rd.y;
+	col = mix( col, cloudColour, 0.5*smoothstep(0.5,0.8,fbm(0.0005*sc+fbm(0.0005*sc+u_time*cloudFlux))));
+	
+	// cloud layer 2
+	sc = cloudSpeed * 30.*u_time * ro.xz + rd.xz*(500.0-ro.y)/rd.y;
+	col = mix( col, cloudColour, 0.5*smoothstep(0.5,0.8,fbm(0.0002*sc+fbm(0.0005*sc+u_time*cloudFlux))));
+
+	return col;
+}
+
 vec3 samplingMarch(vec3 ro, vec3 rd) 
 {
 	vec3 sampleCol;
 	float dist;
 	float rayDepth = 0.;
-	// vec3 cubeCol = textureCube(cubeTexture, rd).rgb;
 
 	for (int i = 0; i < 32; i++) 
 	{
@@ -166,8 +245,8 @@ vec3 samplingMarch(vec3 ro, vec3 rd)
 		rayDepth += dist;
 	}
 
-	sampleCol += ground(ro, rd,-5.0);
-	// sampleCol += cubeCol;
+	// sampleCol += ground(ro, rd,-5.0);
+	sampleCol += sky(lightDir, rd, ro);
 
 	return sampleCol;	
 }
@@ -178,11 +257,6 @@ float schlickFresnel(float ri, float cosine)
 	r0 = r0 * r0;
 	return r0 + (1.0 - r0) * pow(1.0 - cosine, 5.0);
 }
-
-float rI = 1.5;
-vec3 lightDir = normalize(vec3(1.0, 1.0, 1.0));
-vec3 lightColor = vec3(2.0);
-vec3 substanceColor = vec3(0.90, 0.95, 1.0);
 
 vec3 march(vec3 ro, vec3 rd)
 {

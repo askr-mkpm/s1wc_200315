@@ -102,7 +102,7 @@ export class klab
             gl.activeTexture(gl.TEXTURE0);
             gl.bindTexture(gl.TEXTURE_CUBE_MAP, cubeTexture);
 
-            console.log(cubeTexture);
+            // console.log(cubeTexture);
 
             m.identity(mMatrix);
             m.multiply(tmpMatrix, mMatrix, mvpMatrix);

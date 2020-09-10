@@ -57,29 +57,6 @@ export class klab
         m.perspective(45, cw / ch, 0.1, 10.0, pMatrix);
         m.multiply(pMatrix, vMatrix, tmpMatrix);
 
-        // テクスチャ関連
-        var cubeTexture = null;
-        
-        // キューブマップ用イメージのソースを配列に格納
-        var cubeSourse = new Array( './images/cube_PX.png',
-                                    './images/cube_PY.png',
-                                    './images/cube_PZ.png',
-                                    './images/cube_NX.png',
-                                    './images/cube_NY.png',
-                                    './images/cube_NZ.png');
-        
-
-        // キューブマップ用のターゲットを格納する配列
-        var cubeTarget = new Array( gl.TEXTURE_CUBE_MAP_POSITIVE_X,
-                                    gl.TEXTURE_CUBE_MAP_POSITIVE_Y,
-                                    gl.TEXTURE_CUBE_MAP_POSITIVE_Z,
-                                    gl.TEXTURE_CUBE_MAP_NEGATIVE_X,
-                                    gl.TEXTURE_CUBE_MAP_NEGATIVE_Y,
-                                    gl.TEXTURE_CUBE_MAP_NEGATIVE_Z);
-        
-        // キューブマップテクスチャの生成
-        pb.create_cube_texture(cubeSourse, cubeTarget, cubeTexture);
-
         let s2_NoiseBuffer = pb.createFrameBuffer(cw, ch);
 
         startTime = new Date().getTime();
@@ -97,12 +74,6 @@ export class klab
             pb.uniformMatrix4fv(s2_bgPrg, 'mvpMatrix', mvpMatrix);
             pb.uniform2fv(s2_bgPrg, 'u_resolution',[width, height]); 
             pb.uniform1f(s2_bgPrg, 'u_time',time);
-
-            pb.uniform1i(s2_bgPrg, 'cubeTexture', 0);
-            gl.activeTexture(gl.TEXTURE0);
-            gl.bindTexture(gl.TEXTURE_CUBE_MAP, cubeTexture);
-
-            // console.log(cubeTexture);
 
             m.identity(mMatrix);
             m.multiply(tmpMatrix, mMatrix, mvpMatrix);

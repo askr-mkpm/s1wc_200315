@@ -151,6 +151,7 @@ vec3 samplingMarch(vec3 ro, vec3 rd)
 	vec3 sampleCol;
 	float dist;
 	float rayDepth = 0.;
+	// vec3 cubeCol = textureCube(cubeTexture, rd).rgb;
 
 	for (int i = 0; i < 32; i++) 
 	{
@@ -166,6 +167,7 @@ vec3 samplingMarch(vec3 ro, vec3 rd)
 	}
 
 	sampleCol += ground(ro, rd,-5.0);
+	// sampleCol += cubeCol;
 
 	return sampleCol;	
 }

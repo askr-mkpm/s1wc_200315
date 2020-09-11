@@ -22,6 +22,21 @@ vec3 rep(vec3 p,float r)
     return mod(p,r)-.5*r;
 }
 
+vec3 round(vec3 p, float c)
+{
+	vec3 r;
+	r.x = floor(p.x/c+0.5);
+	r.y = floor(p.y/c+0.5);
+	r.z = floor(p.z/c+0.5);
+	return r;
+}
+
+vec3 opRepLim( in vec3 p, in float c, in vec3 l)
+{
+	vec3 r = round(p,c);
+    return p-c*clamp(r,-l,l);
+}
+
 vec3 hsv(float h,float s,float v)
 {
     return((clamp(abs(fract(h+vec3(0.,2.,1.)/3.)*6.-3.)-1.,0.,1.)-1.)*s+1.)*v;
@@ -30,6 +45,10 @@ vec3 hsv(float h,float s,float v)
 float rand(vec3 n)
 { 
     return fract(sin(dot(n, vec3(12.9898, 4.1414,14.6313))) * 43758.5453);
+}
+
+float rand_(vec2 n) { 
+	return fract(sin(dot(n, vec2(12.9898, 4.1414))) * 43758.5453);
 }
 
 //---
@@ -84,6 +103,18 @@ float noise_ (in vec2 st) {
             (d - b) * u.x * u.y;
 }
 
+float noise_2(vec2 p){
+	vec2 ip = floor(p);
+	vec2 u = fract(p);
+	u = u*u*(3.0-2.0*u);
+	
+	float res = mix(
+		mix(rand_(ip),rand_(ip+vec2(1.0,0.0)),u.x),
+		mix(rand_(ip+vec2(0.0,1.0)),rand_(ip+vec2(1.0,1.0)),u.x),u.y);
+	return res*res;
+}
+
+
 #define OCTAVES 6
 float fbm (in vec2 st) 
 {
@@ -117,14 +148,28 @@ float sdBubble(vec3 p, float r)
 	return length(q + p) - r;
 }
 
+vec2 pMod2(inout vec2 p, float size)
+{
+	float halfsize = size*0.5;
+	vec2 c = floor((p+halfsize)/size);
+	p = mod(p+halfsize,size)-halfsize;
+	return c;
+}
+
 //https://www.shadertoy.com/view/4dcBRN
 float randBubble(vec3 p)
 {
-    vec3 i = floor((p+2.5)/5.0 );
-    vec3 q = mod(p+2.5, 5.0)-2.5;
-    float e = step(0.9,rand(i));
-    float s = 0.2 + 0.8*rand(i.zyx+3.0);
-    return sdSphere(q, 2.0*e*s);
+	//     vec2 index = pMod2(p.xz, 5.0);
+    // float valNoise = noise_(index);
+
+	float d = sdSphere(opRepLim(p,3., vec3(1.)), 0.5);
+	// for(int i = 0; i < 3; i++)
+	// {
+	// 	p.x += float(i);
+	// 	p.y += float(i)*1.2;
+	// 	d = min(d, sdSphere(rep(p,3.), 0.5));
+	// }
+    return d;
 	// return sdBubble(q, 2.0*e*s);
 }
 
@@ -296,29 +341,30 @@ vec3 march(vec3 ro, vec3 rd)
 
 			float f = schlickFresnel(rI, max(0.0, dot(-rd, n)));
 
-			vec3 spec = f * lightColor * pow(max(0.0, dot(refl, lightDir)), 4.0);
+			vec3 spec = f * lightColor;// * pow(max(0.0, dot(refl, lightDir)), 4.0);
+			return spec;// + substanceColor * samplingMarch(rayPos, refr);
 			
-			vec3 op = rayPos + refr * 100.0;
-			for (int j = 0; j < 32; j++) 
-			{
-				float d = map(op);
-				op += -refr * d;
-				if (d < 0.001 && dist < dist2) 
-				{
-					vec3 n2 = getNormal(op);
-					vec3 refr_2 = refract(refr, -n2, rI);
+			// vec3 op = rayPos + refr * 100.0;
+			// for (int j = 0; j < 32; j++) 
+			// {
+			// 	float d = map(op);
+			// 	op += -refr * d;
+			// 	if (d < 0.001 && dist < dist2) 
+			// 	{
+			// 		vec3 n2 = getNormal(op);
+			// 		vec3 refr_2 = refract(refr, -n2, rI);
 
-					if (length(refr_2) > 0.01) 
-					{
-						rayCol = spec + substanceColor * samplingMarch(op, refr_2);
-						return rayCol;
-					} else {
-						vec3 refl_2 = reflect(refr, -n2);
-						rayCol = spec + substanceColor * samplingMarch(op, refl_2);
-						return rayCol;
-					}
-				}
-			}
+			// 		if (length(refr_2) > 0.01) 
+			// 		{
+			// 			rayCol = spec + substanceColor * samplingMarch(op, refr_2);
+			// 			return rayCol;
+			// 		} else {
+			// 			vec3 refl_2 = reflect(refr, -n2);
+			// 			rayCol = spec + substanceColor * samplingMarch(op, refl_2);
+			// 			return rayCol;
+			// 		}
+			// 	}
+			// }
 		}
 
 		rayDepth += dist;

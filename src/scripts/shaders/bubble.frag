@@ -255,8 +255,8 @@ vec3 samplingMarch(vec3 ro, vec3 rd)
 		{
 			vec3 tc = vec3(1.);
 			vec3 fc = vec3(0.);
-			// float l = exp(-1. * rayPos.y);
-			sampleCol = mix(tc, fc, 0.);
+			float l = abs(0. - rayPos.y)*0.;
+			sampleCol = mix(tc, fc, l);
 		}
 
 		rayDepth += dist;

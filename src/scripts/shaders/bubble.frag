@@ -159,6 +159,7 @@ float sdBubble(vec3 p, float r)
 
 float sdOctahedron( vec3 p, float s)
 {
+	p.xy *= rot(pi*u_time*0.1);
   p = abs(p);
   float m = p.x+p.y+p.z-s;
   vec3 q;
@@ -183,8 +184,10 @@ float sdOctBubble( vec3 p, float s)
 
 float sdRoundBox( vec3 p, vec3 b, float r )
 {
+	// p.yx *= rot(pi*0.25);
+	p.zx *= rot(pi*u_time*0.1);
   vec3 q = abs(p) - b;
-  return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0) - r;
+  return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0) - (r-0.05*sin(u_time*0.1));
 }
 
 vec2 pMod2(inout vec2 p, float size)
@@ -285,30 +288,32 @@ p.yz = p.yz*rot(pi*0.5);
 float easeInOutCubic(float x) 
 {
 	return (x < 0.5) ? 4. * x * x * x : 1. - pow(-2. * x + 2., 3.) / 2.;
+	// return 1. - pow(1. - x, 3.);
 }
 
-float ht = 3.;
+float ht = 0.;
 
 float map(vec3 p)
 {
-	// p.y -= ;
+	p.y += ht ;
 	float d;
 	float t = u_time;
 	float s;
 	float rb = randBubble(p);
 	float box = sdRoundBox(p, vec3(1.), 0.3);
-	float bub = sdBubble(p, 1.);
+	float bub = sdBubble(p, 2.);
 	float oct = sdOctahedron(p, 2.);
 	float octbub = sdOctBubble(p, 2.);
 
-	if(t < 5.){d = bub;}
-	// else if(5. < t && t < 10.){ s = clamp(easeInOutCubic(t-5.),0.,1.); d = mix(bub, rb, s);}
-	// else if(10. < t && t < 15.){s = clamp(easeInOutCubic(t-10.),0.,1.); d = mix(rb, box,s);}
-	// else if(15. < t && t < 20.){s = clamp(easeInOutCubic(t-15.),0.,1.); d = mix(box, oct,s);}
-	// else if(20. < t && t < 25.){s = clamp(easeInOutCubic(t-20.),0.,1.); d = mix(oct, octbub,s);}
-	else{s = clamp(easeInOutCubic(t-5.),0.,1.); d = mix(octbub, bub,s);}
+	// if(t < 5.){d = bub;}
+	// else if(5. < t && t < 10.){ s = clamp(easeInOutCubic(t-5.),0.,1.); d = mix(bub, oct, s);}
+	// else if(10. < t && t < 15.){s = clamp(easeInOutCubic(t-10.),0.,1.); d = mix(oct, octbub,s);}
+	// else if(15. < t && t < 20.){s = clamp(easeInOutCubic(t-15.),0.,1.); d = mix(octbub, bub,s);}
+	// else if(20. < t && t < 25.){s = clamp(easeInOutCubic(t-20.),0.,1.); d = mix(bub, rb,s);}
+	// else{s = clamp(easeInOutCubic(t-25.),0.,1.); d = mix(rb, box,s);}
 	
-	return d;
+	// return d;
+	return oct;
 }
 
 float samplingMap(vec3 p)
@@ -426,14 +431,32 @@ vec3 sky(vec3 lightDir, vec3 rd, vec3 ro)
 	float cloudFlux = .5;
 	
 	// layer 1
-	vec3 cloudColour = mix(vec3(1.0, 1.0, 1.0), 0.35*redSky,pow(sundot, 2.));
+	vec3 cloudCol = mix(vec3(1.0, 1.0, 1.0), 0.35*redSky,pow(sundot, 2.));
+	// cloudCol = mix(cloudCol, col, 1.5*pow(-sundot, 8.));
+
+	// vec2 sc = cloudSpeed * 50.*u_time*ro.xz + rd.xz*(1000.0-ro.y)/rd.y;
+	// col = mix( col, cloudCol, 0.5*smoothstep(0.5,0.8,fbm(0.0005*sc+fbm(0.0005*sc+u_time*cloudFlux))));
 	
-	vec2 sc = cloudSpeed * 50.*u_time*ro.xz + rd.xz*(1000.0-ro.y)/rd.y;
-	col = mix( col, cloudColour, 0.5*smoothstep(0.5,0.8,fbm(0.0005*sc+fbm(0.0005*sc+u_time*cloudFlux))));
-	
-	// cloud layer 2
-	sc = cloudSpeed * 30.*u_time * ro.xz + rd.xz*(500.0-ro.y)/rd.y;
-	col = mix( col, cloudColour, 0.5*smoothstep(0.5,0.8,fbm(0.0002*sc+fbm(0.0005*sc+u_time*cloudFlux))));
+	// // cloud layer 2
+	// sc = cloudSpeed * 30.*u_time * ro.xz + rd.xz*(500.0-ro.y)/rd.y;
+	// col = mix( col, cloudCol, 0.5*smoothstep(0.5,0.8,fbm(0.0002*sc+fbm(0.0005*sc+u_time*cloudFlux))));
+
+	//////
+
+	vec2 uv = (rd*-1000./dot(rd, vec3(0.,1.,0.))).xz + u_time * 3.5;
+    float clouds = 0.5*smoothstep(0.5,0.8,fbm(0.0005*uv+fbm(0.0005*uv+u_time*cloudFlux)));
+    // clouds = clamp((clouds - 0.5) * 2.0, 0.0, 1.0);
+	col = mix(col, cloudCol, clouds);
+
+	// uv = (rd*-1200./dot(rd, vec3(0.,1.,0.))).xz + u_time * 1.5;
+    // clouds = 0.5*smoothstep(0.5,0.8,fbm(0.0002*uv.yx+fbm(0.0002*uv.yx+u_time*cloudFlux)));
+    // // clouds = clamp((clouds - 0.5) * 2.0, 0.0, 1.0);
+	// col = mix(col, cloudCol, clouds);
+
+	// uv = (rd*-1400./dot(rd, vec3(0.,1.,0.))).xz + u_time * 0.5;
+    // clouds = 0.5*smoothstep(0.5,0.8,fbm(0.0008*uv+fbm(0.0008*uv+u_time*cloudFlux)));
+    // // clouds = clamp((clouds - 0.5) * 2.0, 0.0, 1.0);
+	// col = mix(col, cloudCol, clouds);
 
         
 	return col;
@@ -542,7 +565,7 @@ void main( void )
 {
 	vec2 p = (gl_FragCoord.xy * 2.- u_resolution) / min(u_resolution.y, u_resolution.x);
 
-	vec3 camOffset = vec3(5.0 * cos(u_time * 0.2)+0., 5.0 * (-1.5 - (sin(u_time*0.5))) + 3.0, 5.0 * sin(u_time * 0.2)+0.);
+	vec3 camOffset = vec3(5.0 * cos(u_time * 0.2)+0., 5.0 * (-1.5 - (sin(u_time*0.5))) + 3.0, 30.0 * sin(u_time * 0.2)+0.);
     vec3 ro = vec3(0.,0.,-15.);
 	ro.xz = ro.xz * rot(pi*0.6-u_time * 0.04);
 	ro += camOffset;
@@ -550,6 +573,7 @@ void main( void )
 	ro += fbm(vec2(sin(u_time*tt), cos(u_time*tt)))*8.;
 
     vec3 ta = vec3(0.);
+	ta.y -= ht;
     vec3 z = normalize(ta - ro);
     vec3 up = vec3(0., 1., 0.);
     vec3 x = normalize(cross(z, up));

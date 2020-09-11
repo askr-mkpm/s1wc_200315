@@ -306,21 +306,21 @@ float map(vec3 p)
 	float t = u_time;
 	float s;
 	float rb = randBubble(p);
-	float box = sdRoundBox(p, vec3(1.), 1.);
+	float box = sdRoundBox(p, vec3(2.), 1.);
 	float bub = sdBubble(p, 2.);
 	float bub_2 = sdBubble(p, 4.);
 	float oct = sdOctahedron(p, 4.);
 	float octbub = sdOctBubble(p, 4.);
 
-	// if(t < 5.){d = bub;}
-	// else if(5. < t && t < 10.){ s = clamp(easeInOutCubic(t-5.),0.,1.); d = mix(bub, oct, s);}
-	// else if(10. < t && t < 15.){s = clamp(easeInOutCubic(t-10.),0.,1.); d = mix(oct, octbub,s);}
-	// else if(15. < t && t < 20.){s = clamp(easeInOutCubic(t-15.),0.,1.); d = mix(octbub, bub_2,s);}
-	// else if(20. < t && t < 25.){s = clamp(easeInQuad(t-20.),0.,1.); d = mix(bub_2, rb,s);}
-	// else{s = clamp(easeInQuad(t-25.),0.,1.); d = mix(rb, box,s);}
+	if(t < 5.){d = bub;}
+	else if(5. < t && t < 10.){ s = clamp(easeInOutCubic(t-5.),0.,1.); d = mix(bub, oct, s);}
+	else if(10. < t && t < 15.){s = clamp(easeInOutCubic(t-10.),0.,1.); d = mix(oct, octbub,s);}
+	else if(15. < t && t < 20.){s = clamp(easeInOutCubic(t-15.),0.,1.); d = mix(octbub, bub_2,s);}
+	else if(20. < t && t < 25.){s = clamp(easeInQuad(t-20.),0.,1.); d = mix(bub_2, rb,s);}
+	else{s = clamp(easeInQuad(t-25.),0.,1.); d = mix(rb, box,s);}
 	
-	// return d;
-	return oct;
+	return d;
+	// return oct;
 }
 
 float samplingMap(vec3 p)
@@ -414,20 +414,18 @@ vec3 starPat (vec3 rd, float scl)
 vec3 sky(vec3 lightDir, vec3 rd, vec3 ro)
 {
 	vec3 col;
-	float sundot = clamp(dot(rd,lightDir),0.0,1.0);
+	float sunWeight = clamp(dot(rd,lightDir),0.,1.);
 
-	vec3 blueSky = vec3(0.0863, 0.1686, 0.2549);
-	vec3 redSky = vec3(0.8,0.8,0.6);
-	
-	vec3 sky = mix(blueSky, redSky, 1.5*pow(sundot, 8.));
+	vec3 sunCol = vec3(0.8,0.8,0.6);
+	vec3 darkCol = vec3(0.0863, 0.1686, 0.2549);
+	vec3 sky = mix(darkCol, sunCol, 1.5*pow(sunWeight, 20.));
 	
 	col =  sky*(1.0-0.8*rd.y);
+	col += 0.3*vec3(0.4, 0.4902, 0.5333)*pow(sunWeight, 10.);
+	col += 0.1*vec3(1., 0.7, 0.7)*pow(sunWeight, 30.);
+	col += vec3(1.0, 0.6941, 0.3451)*pow(sunWeight, 512.);
 
-	col += 0.1*vec3(0.4, 0.4902, 0.5333)*pow(sundot, 1.5);
-	col += 0.2*vec3(1., 0.7, 0.7)*pow(sundot, 3.);
-	col += 0.95*vec3(1.)*pow(sundot, 512.);
-
-	col = mix( col, 0.9*vec3(0.9,0.75,0.8), pow( 1.-max(rd.y+0.1,0.0), 8.0));
+	col = mix( col, 0.9*vec3(1.0, 0.9569, 0.8314), pow( 1.-max(rd.y+0.1,0.0), 8.0));
  
 	float st = pow(starPat(rd, 3.1).x,4.);
 	vec3 starCol = col + st* max(rd.y, -0.2)*3.;
@@ -438,8 +436,8 @@ vec3 sky(vec3 lightDir, vec3 rd, vec3 ro)
 	float cloudFlux = .5;
 	
 	// layer 1
-	vec3 cloudCol = mix(vec3(1.0, 1.0, 1.0), 0.35*redSky,pow(sundot, 2.));
-	// cloudCol = mix(cloudCol, col, 1.5*pow(-sundot, 8.));
+	vec3 cloudCol = mix(vec3(1.0, 1.0, 1.0), 0.35*sunCol,pow(sunWeight, 2.));
+	// cloudCol = mix(cloudCol, col, 1.5*pow(-sunWeight, 8.));
 
 	// vec2 sc = cloudSpeed * 50.*u_time*ro.xz + rd.xz*(1000.0-ro.y)/rd.y;
 	// col = mix( col, cloudCol, 0.5*smoothstep(0.5,0.8,fbm(0.0005*sc+fbm(0.0005*sc+u_time*cloudFlux))));
@@ -530,23 +528,23 @@ vec3 march(vec3 ro, vec3 rd)
 			vec3 spec = f * lightColor * pow(max(0.0, dot(refl, lightDir)), .5);
 			// return spec + substanceColor * samplingMarch(rayPos, refr);
 			
-			vec3 op = rayPos + refr * 100.0;
+			vec3 revRayPos = rayPos + refr * 1000.0;
 			for (int j = 0; j < 32; j++) 
 			{
-				float d = map(op);
-				op += -refr * d;
+				float d = map(revRayPos);
+				revRayPos += -refr * d;
 				if (d < 0.001 && dist < dist2) 
 				{
-					vec3 n2 = getNormal(op);
+					vec3 n2 = getNormal(revRayPos);
 					vec3 refr_2 = refract(refr, -n2, rI);
 
 					if (length(refr_2) > 0.01) 
 					{
-						rayCol = spec + substanceColor * samplingMarch(op, refr_2);
+						rayCol = spec + substanceColor * samplingMarch(revRayPos, refr_2);
 						return rayCol;
 					} else {
 						vec3 refl_2 = reflect(refr, -n2);
-						rayCol = spec + substanceColor * samplingMarch(op, refl_2);
+						rayCol = spec + substanceColor * samplingMarch(revRayPos, refl_2);
 						return rayCol;
 					}
 				}

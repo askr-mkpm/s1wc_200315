@@ -182,7 +182,7 @@ float samplingMap(vec3 p)
 	c = min(c, sdCylinder(cp_3, vec3(1.)));
 	float b = sdCappedTorus(rpp, vec2(0.), 25., 1.);
 	float tb = sdBoundingBox(rpp,vec3(20., 9.7, 20.), 1.5);
-	d = c;
+	d = b;
 
 	return d;
 }
@@ -255,8 +255,8 @@ vec3 samplingMarch(vec3 ro, vec3 rd)
 		{
 			vec3 tc = vec3(1.);
 			vec3 fc = vec3(0.);
-			float l = abs(0. - rayPos.y)*0.1;
-			sampleCol = mix(tc, fc, l);
+			// float l = exp(-1. * rayPos.y);
+			sampleCol = mix(tc, fc, 0.);
 		}
 
 		rayDepth += dist;
@@ -331,7 +331,7 @@ void main( void )
 {
 	vec2 p = (gl_FragCoord.xy * 2.- u_resolution) / min(u_resolution.y, u_resolution.x);
 
-	vec3 camOffset = vec3(10.0 * cos(u_time * 0.2), 15.0 * sin(u_time * 0.3) + 3.0, 10.0 * sin(u_time * 0.2));
+	vec3 camOffset = vec3(5.0 * cos(u_time * 0.2), 15.0 * sin(u_time * 0.3) + 3.0, 5.0 * sin(u_time * 0.2));
     vec3 ro = vec3(0.,0.,-15);
 	ro += camOffset;
     vec3 ta = vec3(0.);

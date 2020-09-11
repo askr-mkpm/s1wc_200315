@@ -19,6 +19,16 @@ float box(vec3 p, vec3 r)
   return max(max(p.x,p.y),p.z);
 }
 
+float sdBoundingBox( vec3 p, vec3 b, float e )
+{
+       p = abs(p  )-b;
+  vec3 q = abs(p+e)-e;
+  return min(min(
+      length(max(vec3(p.x,q.y,q.z),0.0))+min(max(p.x,max(q.y,q.z)),0.0),
+      length(max(vec3(q.x,p.y,q.z),0.0))+min(max(q.x,max(p.y,q.z)),0.0)),
+      length(max(vec3(q.x,q.y,p.z),0.0))+min(max(q.x,max(q.y,p.z)),0.0));
+}
+
 vec3 rep(vec3 p, float r)
 {
   return mod(p,r)- 0.5*r;
@@ -26,13 +36,9 @@ vec3 rep(vec3 p, float r)
 
 float ifsbox(vec3 p)
 {
-  for(int i=0;i<3;i++)
-  {
-    p = abs(p)-2.;
-  }
   vec3 rp = rep(p,9.);
   vec3 r = vec3(rp.x, p.y, p.z);
-  return box(r,vec3(1.,4.,3.));
+  return sdBoundingBox(r, vec3(6.), 1.);
 }
 
 

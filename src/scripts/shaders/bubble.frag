@@ -151,7 +151,7 @@ float sdBoundingBox( vec3 p, vec3 b, float e )
 
 float sdCappedTorus(in vec3 p, in vec2 sc, in float ra, in float rb)
 {
-	p.yz = p.yz*rot(pi*0.5);
+p.yz = p.yz*rot(pi*0.5);
   p.x = abs(p.x);
   float k = (sc.y*p.x>sc.x*p.y) ? dot(p.xy,sc) : length(p.xy);
   return sqrt( dot(p,p) + ra*ra - 2.0*ra*k ) - rb;
@@ -169,9 +169,20 @@ float map(vec3 p)
 float samplingMap(vec3 p)
 {
 	float d;
-	float c = sdCylinder(p, vec3(5.));
-	float b = sdCappedTorus(p, vec2(0.), 15., 1.);
-	d = b;
+
+	vec3 rp = rep(p,19.);
+  	vec3 rpp = vec3(p.x, rp.y, p.z);
+
+	vec3 cp_1 = vec3(p.x+ 10., p.y, p.z+ 10.);
+	vec3 cp_2 = vec3(p.x+ 20., p.y, p.z+ 10.);
+	vec3 cp_3 = vec3(p.x+ 10., p.y, p.z- 10.);
+
+	float c = sdCylinder(cp_1, vec3(1.));
+	c = min(c, sdCylinder(cp_2, vec3(1.)));
+	c = min(c, sdCylinder(cp_3, vec3(1.)));
+	float b = sdCappedTorus(rpp, vec2(0.), 25., 1.);
+	float tb = sdBoundingBox(rpp,vec3(20., 9.7, 20.), 1.5);
+	d = c;
 
 	return d;
 }
@@ -240,7 +251,7 @@ vec3 samplingMarch(vec3 ro, vec3 rd)
 		vec3 rayPos = ro + rd * rayDepth;
 		dist  = samplingMap(rayPos);
 		
-		if (dist < 0.00001) 
+		if (dist < 0.001) 
 		{
 			vec3 tc = vec3(1.);
 			vec3 fc = vec3(0.);

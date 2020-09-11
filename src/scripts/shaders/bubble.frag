@@ -139,6 +139,24 @@ float sdCylinder( vec3 p, vec3 c )
   return length(p.xz-c.xy)-c.z;
 }
 
+float sdBoundingBox( vec3 p, vec3 b, float e )
+{
+       p = abs(p  )-b;
+  vec3 q = abs(p+e)-e;
+  return min(min(
+      length(max(vec3(p.x,q.y,q.z),0.0))+min(max(p.x,max(q.y,q.z)),0.0),
+      length(max(vec3(q.x,p.y,q.z),0.0))+min(max(q.x,max(p.y,q.z)),0.0)),
+      length(max(vec3(q.x,q.y,p.z),0.0))+min(max(q.x,max(q.y,p.z)),0.0));
+}
+
+float sdCappedTorus(in vec3 p, in vec2 sc, in float ra, in float rb)
+{
+	p.yz = p.yz*rot(pi*0.5);
+  p.x = abs(p.x);
+  float k = (sc.y*p.x>sc.x*p.y) ? dot(p.xy,sc) : length(p.xy);
+  return sqrt( dot(p,p) + ra*ra - 2.0*ra*k ) - rb;
+}
+
 //---
 
 float map(vec3 p)
@@ -151,9 +169,9 @@ float map(vec3 p)
 float samplingMap(vec3 p)
 {
 	float d;
-	float b = sdBox(p-vec3(5.), vec3(2.0));
-	float c = sdCylinder(p, vec3(1.));
-	d = c;
+	float c = sdCylinder(p, vec3(5.));
+	float b = sdCappedTorus(p, vec2(0.), 15., 1.);
+	d = b;
 
 	return d;
 }
@@ -213,7 +231,7 @@ vec3 sky(vec3 lightDir, vec3 rd, vec3 ro)
 
 vec3 samplingMarch(vec3 ro, vec3 rd) 
 {
-	vec3 sampleCol;
+	vec3 sampleCol = sky(lightDir, rd, ro);
 	float dist;
 	float rayDepth = 0.;
 
@@ -224,14 +242,17 @@ vec3 samplingMarch(vec3 ro, vec3 rd)
 		
 		if (dist < 0.00001) 
 		{
-			sampleCol = vec3(1.);
+			vec3 tc = vec3(1.);
+			vec3 fc = vec3(0.);
+			float l = abs(0. - rayPos.y)*0.1;
+			sampleCol = mix(tc, fc, l);
 		}
 
 		rayDepth += dist;
 	}
 
 	// sampleCol += ground(ro, rd,-5.0);
-	sampleCol += sky(lightDir, rd, ro);
+	// sampleCol += sky(lightDir, rd, ro);
 
 	return sampleCol;	
 }
@@ -245,6 +266,7 @@ float schlickFresnel(float ri, float cosine)
 
 vec3 march(vec3 ro, vec3 rd)
 {
+	vec3 rayCol = samplingMarch(ro,rd);
 	float dist;
 	float rayDepth = 0.;
 	
@@ -252,8 +274,9 @@ vec3 march(vec3 ro, vec3 rd)
 	{
 		vec3 rayPos = ro + rd * rayDepth;
 		dist = map(rayPos);
+		float dist2 = samplingMap(rayPos);
 
-		if(dist < 0.001)
+		if(dist < 0.001 && dist < dist2)
 		{
 			vec3 n = getNormal(rayPos);
 			vec3 refl = reflect(rd, n);
@@ -269,17 +292,19 @@ vec3 march(vec3 ro, vec3 rd)
 			{
 				float d = map(op);
 				op += -refr * d;
-				if (d < 0.001) 
+				if (d < 0.001 && dist < dist2) 
 				{
 					vec3 n2 = getNormal(op);
 					vec3 refr_2 = refract(refr, -n2, rI);
 
 					if (length(refr_2) > 0.01) 
 					{
-						return spec + substanceColor * samplingMarch(op, refr_2);
+						rayCol = spec + substanceColor * samplingMarch(op, refr_2);
+						return rayCol;
 					} else {
 						vec3 refl_2 = reflect(refr, -n2);
-						return spec + substanceColor * samplingMarch(op, refl_2);
+						rayCol = spec + substanceColor * samplingMarch(op, refl_2);
+						return rayCol;
 					}
 				}
 			}
@@ -288,7 +313,7 @@ vec3 march(vec3 ro, vec3 rd)
 		rayDepth += dist;
 	}
 
-	return samplingMarch(ro,rd);
+	return rayCol;//samplingMarch(ro,rd);
 }
 
 void main( void ) 
@@ -308,8 +333,8 @@ void main( void )
 	vec3 col = march(ro, rd);
 
 	//vignette
-    float vg = pow(sqrt(dot(p,p)) * 0.4,2.)+1.;
-    float vig = 1.0 / pow(vg,2.);
+    float vg = pow(sqrt(dot(p,p)) * 0.4,3.)+1.;
+    float vig = 1.0 / pow(vg,2.5);
 	col *= vig;
 
 	gl_FragColor = vec4(col, 1.);

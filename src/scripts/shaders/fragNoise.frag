@@ -9,10 +9,10 @@ float rand(vec2 co)
 }
 
 //https://www.shadertoy.com/view/4ttXWM
-float distortion = 0.2;			// the bias of the barrel distortion
-const float iterations = 1.0;	// how many samples to use for edge blur
+float distortion = 0.3;			// the bias of the barrel distortion
+const float iterations = 2.;	// how many samples to use for edge blur
 float strength = 0.01;			// how much edge blur is applied (to obscure the r, g, b separation)
-float separation = 0.1;			// how much to separate the r, g and b
+float separation = 0.03;			// how much to separate the r, g and b
 
 vec4 Aberrate (sampler2D source, vec2 uv, float amount)
 {
@@ -46,7 +46,7 @@ void main()
     tex = A;
 
     float nv = rand(uv);
-    float noisePower = 0.3;
+    float noisePower = 0.1;
 
     nv *= noisePower;
     nv += 1.;

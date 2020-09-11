@@ -31,6 +31,15 @@ vec3 round(vec3 p, float c)
 	return r;
 }
 
+vec3 opTwist(vec3 p, float k)
+{
+    float c = cos(k*p.y);
+    float s = sin(k*p.y);
+    mat2  m = mat2(c,-s,s,c);
+    vec3  q = vec3(m*p.xz,p.y);
+    return q;
+}
+
 vec3 opRepLim( in vec3 p, in float c, in vec3 l)
 {
 	vec3 r = round(p,c);
@@ -141,11 +150,41 @@ float sdSphere(vec3 p, float s)
 //https://www.shadertoy.com/view/ld3SDl
 float sdBubble(vec3 p, float r)
 {
-	float  t = u_time * 0.5;
+	float  t = u_time * 2.5;
 	vec3 n = vec3(sin(t * 0.5), sin(t * 0.3), cos(t * 0.2));
-	vec3 q = 0.1 * (noise3(p + n) - 0.5);
+	vec3 q = 0.15 * (noise3(p + n) - 0.5);
 	
 	return length(q + p) - r;
+}
+
+float sdOctahedron( vec3 p, float s)
+{
+  p = abs(p);
+  float m = p.x+p.y+p.z-s;
+  vec3 q;
+       if( 3.0*p.x < m ) q = p.xyz;
+  else if( 3.0*p.y < m ) q = p.yzx;
+  else if( 3.0*p.z < m ) q = p.zxy;
+  else return m*0.57735027;
+    
+  float k = clamp(0.5*(q.z-q.y+s),0.0,s); 
+  return length(vec3(q.x,q.y-s+k,q.z-k)); 
+}
+
+float sdOctBubble( vec3 p, float s)
+{
+  p = abs(p);
+  float  t = u_time * 2.5;
+  	vec3 n = vec3(sin(t * 0.5), sin(t * 0.3), cos(t * 0.2));
+	vec3 q = 0.35 * (noise3(p + n) - 0.5);
+	p += q;
+  return (p.x+p.y+p.z-s)*0.57735027;
+}
+
+float sdRoundBox( vec3 p, vec3 b, float r )
+{
+  vec3 q = abs(p) - b;
+  return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0) - r;
 }
 
 vec2 pMod2(inout vec2 p, float size)
@@ -158,8 +197,14 @@ vec2 pMod2(inout vec2 p, float size)
 
 float lisp(vec3 p, float r, float s)
 {
-	return sdSphere(opRepLim(p,r, vec3(1.0, 1.0, 1.0)),s);
-	// return sdBubble(opRepLim(p,r, vec3(1.0, 1.0, 1.0)),s);
+	float cc = 5.;
+	float t = 0.5;
+	p.x += sin(u_time* t)*cc;
+	p.y += 1.2 * cos(u_time * 0.5*t)*cc;
+	p.z += 2. * sin(u_time*0.1*t)*cc;
+	
+	// return sdSphere(opRepLim(p,r, vec3(1.0, 1.0, 1.0)),s);
+	return sdBubble(opRepLim(p,r, vec3(1.0, 1.0, 1.0)),s);
 }
 
 float rbe(vec3 p)
@@ -167,19 +212,19 @@ float rbe(vec3 p)
 	
 	float d = lisp(p, 15., 1.5);
 
-	for(int i = 0; i < 3; i++)
-	{
-		float fi = float(i);
-		float rn1 = (rand_(vec2(fi, fi))+1.)*10.;
-		float rn2 = (rand_(vec2(fi+2432., fi+1235.))+1.)*10.;
-		float rn3 = (rand_(vec2(fi+213., fi-24214.))+1.)*10.;
+	// for(int i = 0; i < 3; i++)
+	// {
+	// 	float fi = float(i);
+	// 	float rn1 = (rand_(vec2(fi, fi))+1.)*10.;
+	// 	float rn2 = (rand_(vec2(fi+2432., fi+1235.))+1.)*10.;
+	// 	float rn3 = (rand_(vec2(fi+213., fi-24214.))+1.)*10.;
 
-		vec3 q = vec3(p.x+rn1, 
-					p.y+rn2, 
-					p.z+rn3);
-		q.xz = q.xz * rot(pi+fi*rn1);
-		d = min(d, lisp(q, 15., 1.5));
-	}
+	// 	vec3 q = vec3(p.x+rn1, 
+	// 				p.y+rn2, 
+	// 				p.z+rn3);
+	// 	q.xz = q.xz * rot(pi+fi*rn1);
+	// 	d = min(d, lisp(q, 15., 1.5));
+	// }
 	return d;
 }
 
@@ -193,7 +238,7 @@ float randBubble(vec3 p)
 {
 
 	float d = rbe(p);
-	// float t = 20.;
+	float t = 20.;
 	// for(int i = 0; i < 5; i++)
 	// {
 	// 	p.xz = p.xz * rot(pi*0.3);
@@ -237,10 +282,32 @@ p.yz = p.yz*rot(pi*0.5);
 
 //---
 
+float easeInOutCubic(float x) 
+{
+	return (x < 0.5) ? 4. * x * x * x : 1. - pow(-2. * x + 2., 3.) / 2.;
+}
+
+float ht = 3.;
+
 float map(vec3 p)
 {
+	// p.y -= ;
 	float d;
-	d = randBubble(p);
+	float t = u_time;
+	float s;
+	float rb = randBubble(p);
+	float box = sdRoundBox(p, vec3(1.), 0.3);
+	float bub = sdBubble(p, 1.);
+	float oct = sdOctahedron(p, 2.);
+	float octbub = sdOctBubble(p, 2.);
+
+	if(t < 5.){d = bub;}
+	// else if(5. < t && t < 10.){ s = clamp(easeInOutCubic(t-5.),0.,1.); d = mix(bub, rb, s);}
+	// else if(10. < t && t < 15.){s = clamp(easeInOutCubic(t-10.),0.,1.); d = mix(rb, box,s);}
+	// else if(15. < t && t < 20.){s = clamp(easeInOutCubic(t-15.),0.,1.); d = mix(box, oct,s);}
+	// else if(20. < t && t < 25.){s = clamp(easeInOutCubic(t-20.),0.,1.); d = mix(oct, octbub,s);}
+	else{s = clamp(easeInOutCubic(t-5.),0.,1.); d = mix(octbub, bub,s);}
+	
 	return d;
 }
 
@@ -255,7 +322,7 @@ float samplingMap(vec3 p)
 	vec3 cp_2 = vec3(p.x+ 20., p.y, p.z+ 10.);
 	vec3 cp_3 = vec3(p.x+ 10., p.y, p.z- 10.);
 
-	float c = sdCylinder(cp_1, vec3(1.));
+	float c = sdCylinder(cp_1, vec3(0.));
 	// c = min(c, sdCylinder(cp_2, vec3(1.)));
 	// c = min(c, sdCylinder(cp_3, vec3(1.)));
 	float b = sdCappedTorus(rpp, vec2(0.), 25., 1.);
@@ -344,8 +411,8 @@ vec3 sky(vec3 lightDir, vec3 rd, vec3 ro)
 	
 	col =  sky*(1.0-0.8*rd.y);
 
-	col += 0.1*vec3(0.9, 0.3, 0.9)*pow(sundot, 0.5);
-	col += 0.2*vec3(1., 0.7, 0.7)*pow(sundot, 1.);
+	col += 0.1*vec3(0.9, 0.3, 0.9)*pow(sundot, 1.5);
+	col += 0.2*vec3(1., 0.7, 0.7)*pow(sundot, 3.);
 	col += 0.95*vec3(1.)*pow(sundot, 256.);
 
 	col = mix( col, 0.9*vec3(0.9,0.75,0.8), pow( 1.-max(rd.y+0.1,0.0), 8.0));
@@ -361,116 +428,15 @@ vec3 sky(vec3 lightDir, vec3 rd, vec3 ro)
 	// layer 1
 	vec3 cloudColour = mix(vec3(1.0, 1.0, 1.0), 0.35*redSky,pow(sundot, 2.));
 	
-	vec2 sc = cloudSpeed * 50.*u_time * ro.xz + rd.xz*(1000.0-ro.y)/rd.y;
+	vec2 sc = cloudSpeed * 50.*u_time*ro.xz + rd.xz*(1000.0-ro.y)/rd.y;
 	col = mix( col, cloudColour, 0.5*smoothstep(0.5,0.8,fbm(0.0005*sc+fbm(0.0005*sc+u_time*cloudFlux))));
 	
 	// cloud layer 2
 	sc = cloudSpeed * 30.*u_time * ro.xz + rd.xz*(500.0-ro.y)/rd.y;
 	col = mix( col, cloudColour, 0.5*smoothstep(0.5,0.8,fbm(0.0002*sc+fbm(0.0005*sc+u_time*cloudFlux))));
 
-	
-
-	return col;
-}
-
-
-vec3 fresnelSchlick(vec3 F0, float cosTheta)
-{
-    return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
-}
-
-vec3 fresnelSchlickWithRoughness(vec3 F0, float cosTheta, float roughness) {
-    return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cosTheta, 5.0);
-}
-
-float so(float NoV, float ao, float roughness) {
-    return clamp(pow(NoV + ao, exp2(-16.0 * roughness - 1.0)) - 1.0 + ao, 0.0, 1.0);
-}
-
-vec3 ambientLighting(vec3 pos, vec3 albedo, float metalness, float roughness, vec3 N, vec3 V, float aoRange, vec3 ro)
-{
-    vec3 diffuseIrradiance = sky(lightDir, N, ro);
-    vec3 diffuseAmbient = diffuseIrradiance * albedo * (1.0 - metalness);
-
-    vec3 R = reflect(-V, N);
-	vec3 F0 = mix(vec3(0.04), albedo, metalness);
-    vec3 F  = fresnelSchlickWithRoughness(F0, max(0.0, dot(N, V)), roughness);
-    vec3 specularIrradiance = sky(lightDir, R, ro);
-    vec3 specularAmbient = specularIrradiance * F;
-
-    float ambientOcclusion = max( 0.0, 1.0 - map( pos + N*aoRange )/aoRange );
-	ambientOcclusion = min(exp2( -.8 * pow(ambientOcclusion, 2.0) ), 1.0) * min(1.0, 1.0+0.5*N.y);
-    diffuseAmbient *= ambientOcclusion;
-    specularAmbient *= so(max(0.0, dot(N, V)), ambientOcclusion, roughness);
-
-    return vec3(diffuseAmbient + specularAmbient);
-}
-
-float ndfGGX(float NdotH, float roughness)
-{
-	float alpha   = roughness * roughness;
-	float alphaSq = alpha * alpha;
-
-	float denom = (NdotH * NdotH) * (alphaSq - 1.0) + 1.0;
-	return alphaSq / (pi * denom * denom);
-}
-
-float gaSchlickG1(float cosTheta, float k)
-{
-	return cosTheta / (cosTheta * (1.0 - k) + k);
-}
-
-float gaSchlickGGX(float NdotL, float NdotV, float roughness)
-{
-	float r = roughness + 1.0;
-	float k = (r * r) / 8.0;
-	return gaSchlickG1(NdotL, k) * gaSchlickG1(NdotV, k);
-}
-
-float shadow(in vec3 p, in vec3 l)
-{
-    float t = 0.01;
-    float t_max = 20.0;
-    
-    float res = 1.0;
-    for (int i = 0; i < 128; ++i)
-    {
-        if (t > t_max) break;
         
-        float d = map(p + t*l);
-        if (d < 0.001)
-        {
-            return 0.0;
-        }
-        t += d;
-        res = min(res, 10.0 * d / t);
-    }
-    
-    return res;
-}
-
-vec3 directLighting(vec3 pos, vec3 albedo, float metalness, float roughness, vec3 N, vec3 V, vec3 L, vec3 lightColor)
-{
-	vec3 H = normalize(L + V);
-	float NdotV = max(0.0, dot(N, V));
-	float NdotL = max(0.0, dot(N, L));
-	float NdotH = max(0.0, dot(N, H));
-    float HdotL = max(0.0, dot(H, L));
-		
-	vec3 F0 = mix(vec3(0.04), albedo, metalness);
-
-	vec3 F  = fresnelSchlick(F0, HdotL);
-	float D = ndfGGX(NdotH, roughness);
-	float G = gaSchlickGGX(NdotL, NdotV, roughness);
-    vec3 specularBRDF = (F * D * G) / max(0.0001, 4.0 * NdotL * NdotV);
-
-	vec3 kd = mix(vec3(1.0) - F, vec3(0.0), metalness);
-	vec3 diffuseBRDF = kd * albedo / pi;
-	
-	float shadow = shadow(pos + N * 0.01, L);
-    vec3 irradiance = lightColor * NdotL * shadow;
-
-	return (diffuseBRDF + specularBRDF) * irradiance;
+	return col;
 }
 
 vec3 samplingMarch(vec3 ro, vec3 rd) 
@@ -479,23 +445,23 @@ vec3 samplingMarch(vec3 ro, vec3 rd)
 	float dist;
 	float rayDepth = 0.;
 
-	for (int i = 0; i < 32; i++) 
-	{
-		vec3 rayPos = ro + rd * rayDepth;
-		dist  = samplingMap(rayPos);
+	// for (int i = 0; i < 32; i++) 
+	// {
+	// 	vec3 rayPos = ro + rd * rayDepth;
+	// 	dist  = samplingMap(rayPos);
 		
-		if (dist < 0.001) 
-		{
-			vec3 n = getNormal(rayPos);
-			vec3 tc = vec3(1.);
-			// tc += directLighting(rayPos, vec3(1.), 0., 0., n, -rd, lightDir, vec3(1.0, 0.98, 0.95) * 100.);
-			vec3 fc = sky(lightDir, rd, ro);
-			float l = pow(exp(-abs(rayPos.y)),0.08);
-			sampleCol = mix(fc, tc, l);
-		}
+	// 	if (dist < 0.001) 
+	// 	{
+	// 		vec3 n = getNormal(rayPos);
+	// 		vec3 tc = vec3(1.);
+	// 		// tc += directLighting(rayPos, vec3(1.), 0., 0., n, -rd, lightDir, vec3(1.0, 0.98, 0.95) * 100.);
+	// 		vec3 fc = sky(lightDir, rd, ro);
+	// 		float l = pow(exp(-abs(rayPos.y)),0.08);
+	// 		sampleCol = mix(fc, tc, l);
+	// 	}
 
-		rayDepth += dist;
-	}
+	// 	rayDepth += dist;
+	// }
 
 	// sampleCol += ground(ro, rd,-5.0);
 	// sampleCol += sky(lightDir, rd, ro);
@@ -563,13 +529,26 @@ vec3 march(vec3 ro, vec3 rd)
 	return rayCol;//samplingMarch(ro,rd);
 }
 
+//https://github.com/CesiumGS/cesium/blob/master/Source/Shaders/Builtin/Functions/saturation.glsl
+vec3 czm_saturation(vec3 rgb, float adjustment)
+{
+	// Algorithm from Chapter 16 of OpenGL Shading Language
+	const vec3 W = vec3(0.2125, 0.7154, 0.0721);
+	vec3 intensity = vec3(dot(rgb, W));
+	return mix(intensity, rgb, adjustment);
+}
+
 void main( void ) 
 {
 	vec2 p = (gl_FragCoord.xy * 2.- u_resolution) / min(u_resolution.y, u_resolution.x);
 
-	vec3 camOffset = vec3(5.0 * cos(u_time * 0.2), 15.0 * sin(u_time * 0.3) + 3.0, 5.0 * sin(u_time * 0.2));
-    vec3 ro = vec3(0.,0.,-15);
+	vec3 camOffset = vec3(5.0 * cos(u_time * 0.2)+0., 5.0 * (-1.5 - (sin(u_time*0.5))) + 3.0, 5.0 * sin(u_time * 0.2)+0.);
+    vec3 ro = vec3(0.,0.,-15.);
+	ro.xz = ro.xz * rot(pi*0.6-u_time * 0.04);
 	ro += camOffset;
+	float tt = 0.085;
+	ro += fbm(vec2(sin(u_time*tt), cos(u_time*tt)))*8.;
+
     vec3 ta = vec3(0.);
     vec3 z = normalize(ta - ro);
     vec3 up = vec3(0., 1., 0.);
@@ -581,8 +560,13 @@ void main( void )
 
 	//vignette
     float vg = pow(sqrt(dot(p,p)) * 0.4,3.)+1.;
-    float vig = 1.0 / pow(vg,2.5);
+    float vig = 1.0 / pow(vg,3.);
 	col *= vig;
+
+	col = czm_saturation(col, 1.);
+	// col += 0.01;
+
+
 
 	gl_FragColor = vec4(col, 1.);
 }

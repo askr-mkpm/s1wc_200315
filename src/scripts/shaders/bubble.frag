@@ -129,7 +129,7 @@ float fbm (in vec2 st)
 {
     float value = 0.0;
     float amplitude = .5;
-    float frequency = 0.;
+
 
     for (int i = 0; i < OCTAVES; i++) 
 	{
@@ -291,6 +291,12 @@ float easeInOutCubic(float x)
 	// return 1. - pow(1. - x, 3.);
 }
 
+
+float easeInQuad(float x) 
+{
+	return x * x;
+}
+
 float ht = 0.;
 
 float map(vec3 p)
@@ -300,17 +306,18 @@ float map(vec3 p)
 	float t = u_time;
 	float s;
 	float rb = randBubble(p);
-	float box = sdRoundBox(p, vec3(1.), 0.3);
+	float box = sdRoundBox(p, vec3(1.), 1.);
 	float bub = sdBubble(p, 2.);
-	float oct = sdOctahedron(p, 2.);
-	float octbub = sdOctBubble(p, 2.);
+	float bub_2 = sdBubble(p, 4.);
+	float oct = sdOctahedron(p, 4.);
+	float octbub = sdOctBubble(p, 4.);
 
 	// if(t < 5.){d = bub;}
 	// else if(5. < t && t < 10.){ s = clamp(easeInOutCubic(t-5.),0.,1.); d = mix(bub, oct, s);}
 	// else if(10. < t && t < 15.){s = clamp(easeInOutCubic(t-10.),0.,1.); d = mix(oct, octbub,s);}
-	// else if(15. < t && t < 20.){s = clamp(easeInOutCubic(t-15.),0.,1.); d = mix(octbub, bub,s);}
-	// else if(20. < t && t < 25.){s = clamp(easeInOutCubic(t-20.),0.,1.); d = mix(bub, rb,s);}
-	// else{s = clamp(easeInOutCubic(t-25.),0.,1.); d = mix(rb, box,s);}
+	// else if(15. < t && t < 20.){s = clamp(easeInOutCubic(t-15.),0.,1.); d = mix(octbub, bub_2,s);}
+	// else if(20. < t && t < 25.){s = clamp(easeInQuad(t-20.),0.,1.); d = mix(bub_2, rb,s);}
+	// else{s = clamp(easeInQuad(t-25.),0.,1.); d = mix(rb, box,s);}
 	
 	// return d;
 	return oct;
@@ -416,9 +423,9 @@ vec3 sky(vec3 lightDir, vec3 rd, vec3 ro)
 	
 	col =  sky*(1.0-0.8*rd.y);
 
-	col += 0.1*vec3(0.9, 0.3, 0.9)*pow(sundot, 1.5);
+	col += 0.1*vec3(0.4, 0.4902, 0.5333)*pow(sundot, 1.5);
 	col += 0.2*vec3(1., 0.7, 0.7)*pow(sundot, 3.);
-	col += 0.95*vec3(1.)*pow(sundot, 256.);
+	col += 0.95*vec3(1.)*pow(sundot, 512.);
 
 	col = mix( col, 0.9*vec3(0.9,0.75,0.8), pow( 1.-max(rd.y+0.1,0.0), 8.0));
  
@@ -444,7 +451,7 @@ vec3 sky(vec3 lightDir, vec3 rd, vec3 ro)
 	//////
 
 	vec2 uv = (rd*-1000./dot(rd, vec3(0.,1.,0.))).xz + u_time * 3.5;
-    float clouds = 0.5*smoothstep(0.5,0.8,fbm(0.0005*uv+fbm(0.0005*uv+u_time*cloudFlux)));
+    float clouds = 0.5*smoothstep(0.5,0.8,fbm(0.0002*uv+fbm(0.0002*uv+u_time*cloudFlux)));
     // clouds = clamp((clouds - 0.5) * 2.0, 0.0, 1.0);
 	col = mix(col, cloudCol, clouds);
 
@@ -565,7 +572,7 @@ void main( void )
 {
 	vec2 p = (gl_FragCoord.xy * 2.- u_resolution) / min(u_resolution.y, u_resolution.x);
 
-	vec3 camOffset = vec3(5.0 * cos(u_time * 0.2)+0., 5.0 * (-1.5 - (sin(u_time*0.5))) + 3.0, 30.0 * sin(u_time * 0.2)+0.);
+	vec3 camOffset = vec3(5.0 * cos(u_time * 0.2)-10., 5.0 * (-2.5 - (sin(u_time*0.5))) + 3.0, 30.0 * sin(u_time * 0.2)-10.);
     vec3 ro = vec3(0.,0.,-15.);
 	ro.xz = ro.xz * rot(pi*0.6-u_time * 0.04);
 	ro += camOffset;

@@ -46,7 +46,7 @@ void main()
     tex = A;
 
     float nv = rand(uv);
-    float noisePower = 0.15;
+    float noisePower = 0.2;
 
     nv *= noisePower;
     nv += 1.;

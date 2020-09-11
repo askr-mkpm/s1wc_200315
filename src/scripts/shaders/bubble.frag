@@ -283,6 +283,55 @@ vec3 lightDir = normalize(vec3(1.0, .0, 1.0));
 vec3 lightColor = vec3(2.0);
 vec3 substanceColor = vec3(0.90, 0.95, 1.0);
 
+float Maxv3 (vec3 p)
+{
+  return max (p.x, max (p.y, p.z));
+}
+
+vec2 Hashv2v2 (vec2 p)
+{
+  vec2 cHashVA2 = vec2 (37., 39.);
+  return fract (sin (vec2 (dot (p, cHashVA2), dot (p + vec2 (1., 0.), cHashVA2))) * 43758.54);
+}
+
+float Noisefv2 (vec2 p)
+{
+  vec2 t, ip, fp;
+  ip = floor (p);  
+  fp = fract (p);
+  fp = fp * fp * (3. - 2. * fp);
+  t = mix (Hashv2v2 (ip), Hashv2v2 (ip + vec2 (0., 1.)), fp.y);
+  return mix (t.x, t.y, fp.x);
+}
+
+float Fbm2 (vec2 p)
+{
+  float f, a;
+  f = 0.;
+  a = 1.;
+  for (int j = 0; j < 5; j ++) {
+    f += a * Noisefv2 (p);
+    a *= 0.5;
+    p *= 2.;
+  }
+  return f * (1. / 1.9375);
+}
+
+//https://www.shadertoy.com/view/3lf3zX
+vec3 starPat (vec3 rd, float scl)
+{
+  vec3 tm, qn, u;
+  vec2 q;
+  float f;
+  tm = -1. / max (abs (rd), 0.0001);
+  qn = - sign (rd) * step (tm.zxy, tm) * step (tm.yzx, tm);
+  u = Maxv3 (tm) * rd;
+  q = atan (vec2 (dot (u.zxy, qn), dot (u.yzx, qn)), vec2 (1.)) / pi;
+  f = 0.57 * (Fbm2 (11. * dot (0.5 * (qn + 1.), vec3 (1., 2., 4.)) + 531.13 * scl * q) +
+      Fbm2 (13. * dot (0.5 * (qn + 1.), vec3 (1., 2., 4.)) + 571.13 * scl * q.yx));
+  return 8. * vec3 (1., 1., 0.8) * pow (f, 16.);
+}
+
 vec3 sky(vec3 lightDir, vec3 rd, vec3 ro)
 {
 	vec3 col;
@@ -301,6 +350,8 @@ vec3 sky(vec3 lightDir, vec3 rd, vec3 ro)
 
 	col = mix( col, 0.9*vec3(0.9,0.75,0.8), pow( 1.-max(rd.y+0.1,0.0), 8.0));
 
+	col += starPat(rd, 3.1);
+
 	// clouds
 	float cloudSpeed = 0.01;
 	float cloudFlux = .5;
@@ -315,8 +366,11 @@ vec3 sky(vec3 lightDir, vec3 rd, vec3 ro)
 	sc = cloudSpeed * 30.*u_time * ro.xz + rd.xz*(500.0-ro.y)/rd.y;
 	col = mix( col, cloudColour, 0.5*smoothstep(0.5,0.8,fbm(0.0002*sc+fbm(0.0005*sc+u_time*cloudFlux))));
 
+	
+
 	return col;
 }
+
 
 vec3 samplingMarch(vec3 ro, vec3 rd) 
 {

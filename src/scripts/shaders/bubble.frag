@@ -162,12 +162,9 @@ float lisp(vec3 p, float r, float s)
 	// return sdBubble(opRepLim(p,r, vec3(1.0, 1.0, 1.0)),s);
 }
 
-//https://www.shadertoy.com/view/4dcBRN
-float randBubble(vec3 p)
+float rbe(vec3 p)
 {
-	//     vec2 index = pMod2(p.xz, 5.0);
-    // float valNoise = noise_(index);
-
+	
 	float d = lisp(p, 15., 1.5);
 
 	for(int i = 0; i < 3; i++)
@@ -180,8 +177,30 @@ float randBubble(vec3 p)
 		vec3 q = vec3(p.x+rn1, 
 					p.y+rn2, 
 					p.z+rn3);
+		q.xz = q.xz * rot(pi+fi*rn1);
 		d = min(d, lisp(q, 15., 1.5));
 	}
+	return d;
+}
+
+float randmp(vec2 t)
+{
+	return (rand_(t)-0.5)*2.;
+}
+
+//https://www.shadertoy.com/view/4dcBRN
+float randBubble(vec3 p)
+{
+
+	float d = rbe(p);
+	// float t = 20.;
+	// for(int i = 0; i < 5; i++)
+	// {
+	// 	p.xz = p.xz * rot(pi*0.3);
+	// 	p.yz = p.yz * rot(pi*0.5);
+		
+	// 	d = min(d, rbe(vec3(p.x+randmp(vec2(1.))*t, p.y+randmp(vec2(1.))*t, p.z+randmp(vec2(1.))*t)));
+	// }
 
     return d;
 	// return sdBubble(q, 2.0*e*s);
@@ -232,16 +251,16 @@ float samplingMap(vec3 p)
 	vec3 rp = rep(p,19.);
   	vec3 rpp = vec3(p.x, rp.y, p.z);
 
-	vec3 cp_1 = vec3(p.x+ 10., p.y, p.z+ 10.);
+	vec3 cp_1 = vec3(p.x, p.y, p.z);
 	vec3 cp_2 = vec3(p.x+ 20., p.y, p.z+ 10.);
 	vec3 cp_3 = vec3(p.x+ 10., p.y, p.z- 10.);
 
 	float c = sdCylinder(cp_1, vec3(1.));
-	c = min(c, sdCylinder(cp_2, vec3(1.)));
-	c = min(c, sdCylinder(cp_3, vec3(1.)));
+	// c = min(c, sdCylinder(cp_2, vec3(1.)));
+	// c = min(c, sdCylinder(cp_3, vec3(1.)));
 	float b = sdCappedTorus(rpp, vec2(0.), 25., 1.);
 	float tb = sdBoundingBox(rpp,vec3(20., 9.7, 20.), 1.5);
-	d = b;
+	d = c;
 
 	return d;
 }
@@ -356,7 +375,7 @@ vec3 march(vec3 ro, vec3 rd)
 			float f = schlickFresnel(rI, max(0.0, dot(-rd, n)));
 
 			vec3 spec = f * lightColor * pow(max(0.0, dot(refl, lightDir)), .5);
-			return spec + substanceColor * samplingMarch(rayPos, refr);
+			// return spec + substanceColor * samplingMarch(rayPos, refr);
 			
 			vec3 op = rayPos + refr * 100.0;
 			for (int j = 0; j < 32; j++) 

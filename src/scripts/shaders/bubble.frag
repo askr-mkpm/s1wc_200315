@@ -159,6 +159,7 @@ vec2 pMod2(inout vec2 p, float size)
 float lisp(vec3 p, float r, float s)
 {
 	return sdSphere(opRepLim(p,r, vec3(1.0, 1.0, 1.0)),s);
+	// return sdBubble(opRepLim(p,r, vec3(1.0, 1.0, 1.0)),s);
 }
 
 //https://www.shadertoy.com/view/4dcBRN

@@ -260,7 +260,7 @@ vec3 getNormal(vec3 p)
 }
 
 float rI = 1.5;
-vec3 lightDir = normalize(vec3(1.0, 1.0, 1.0));
+vec3 lightDir = normalize(vec3(1.0, .0, 1.0));
 vec3 lightColor = vec3(2.0);
 vec3 substanceColor = vec3(0.90, 0.95, 1.0);
 
@@ -269,7 +269,7 @@ vec3 sky(vec3 lightDir, vec3 rd, vec3 ro)
 	vec3 col;
 	float sundot = clamp(dot(rd,lightDir),0.0,1.0);
 
-	vec3 blueSky = vec3(0.3,.55,0.8);
+	vec3 blueSky = vec3(0.0863, 0.1686, 0.2549);
 	vec3 redSky = vec3(0.8,0.8,0.6);
 	
 	vec3 sky = mix(blueSky, redSky, 1.5*pow(sundot, 8.));

@@ -349,8 +349,10 @@ vec3 sky(vec3 lightDir, vec3 rd, vec3 ro)
 	col += 0.95*vec3(1.)*pow(sundot, 256.);
 
 	col = mix( col, 0.9*vec3(0.9,0.75,0.8), pow( 1.-max(rd.y+0.1,0.0), 8.0));
-
-	col += starPat(rd, 3.1);
+ 
+	float st = pow(starPat(rd, 3.1).x,4.);
+	vec3 starCol = col + st* max(rd.y, -0.2)*3.;
+	col = mix(col, starCol, rd.y);
 
 	// clouds
 	float cloudSpeed = 0.01;
@@ -372,6 +374,105 @@ vec3 sky(vec3 lightDir, vec3 rd, vec3 ro)
 }
 
 
+vec3 fresnelSchlick(vec3 F0, float cosTheta)
+{
+    return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
+}
+
+vec3 fresnelSchlickWithRoughness(vec3 F0, float cosTheta, float roughness) {
+    return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cosTheta, 5.0);
+}
+
+float so(float NoV, float ao, float roughness) {
+    return clamp(pow(NoV + ao, exp2(-16.0 * roughness - 1.0)) - 1.0 + ao, 0.0, 1.0);
+}
+
+vec3 ambientLighting(vec3 pos, vec3 albedo, float metalness, float roughness, vec3 N, vec3 V, float aoRange, vec3 ro)
+{
+    vec3 diffuseIrradiance = sky(lightDir, N, ro);
+    vec3 diffuseAmbient = diffuseIrradiance * albedo * (1.0 - metalness);
+
+    vec3 R = reflect(-V, N);
+	vec3 F0 = mix(vec3(0.04), albedo, metalness);
+    vec3 F  = fresnelSchlickWithRoughness(F0, max(0.0, dot(N, V)), roughness);
+    vec3 specularIrradiance = sky(lightDir, R, ro);
+    vec3 specularAmbient = specularIrradiance * F;
+
+    float ambientOcclusion = max( 0.0, 1.0 - map( pos + N*aoRange )/aoRange );
+	ambientOcclusion = min(exp2( -.8 * pow(ambientOcclusion, 2.0) ), 1.0) * min(1.0, 1.0+0.5*N.y);
+    diffuseAmbient *= ambientOcclusion;
+    specularAmbient *= so(max(0.0, dot(N, V)), ambientOcclusion, roughness);
+
+    return vec3(diffuseAmbient + specularAmbient);
+}
+
+float ndfGGX(float NdotH, float roughness)
+{
+	float alpha   = roughness * roughness;
+	float alphaSq = alpha * alpha;
+
+	float denom = (NdotH * NdotH) * (alphaSq - 1.0) + 1.0;
+	return alphaSq / (pi * denom * denom);
+}
+
+float gaSchlickG1(float cosTheta, float k)
+{
+	return cosTheta / (cosTheta * (1.0 - k) + k);
+}
+
+float gaSchlickGGX(float NdotL, float NdotV, float roughness)
+{
+	float r = roughness + 1.0;
+	float k = (r * r) / 8.0;
+	return gaSchlickG1(NdotL, k) * gaSchlickG1(NdotV, k);
+}
+
+float shadow(in vec3 p, in vec3 l)
+{
+    float t = 0.01;
+    float t_max = 20.0;
+    
+    float res = 1.0;
+    for (int i = 0; i < 128; ++i)
+    {
+        if (t > t_max) break;
+        
+        float d = map(p + t*l);
+        if (d < 0.001)
+        {
+            return 0.0;
+        }
+        t += d;
+        res = min(res, 10.0 * d / t);
+    }
+    
+    return res;
+}
+
+vec3 directLighting(vec3 pos, vec3 albedo, float metalness, float roughness, vec3 N, vec3 V, vec3 L, vec3 lightColor)
+{
+	vec3 H = normalize(L + V);
+	float NdotV = max(0.0, dot(N, V));
+	float NdotL = max(0.0, dot(N, L));
+	float NdotH = max(0.0, dot(N, H));
+    float HdotL = max(0.0, dot(H, L));
+		
+	vec3 F0 = mix(vec3(0.04), albedo, metalness);
+
+	vec3 F  = fresnelSchlick(F0, HdotL);
+	float D = ndfGGX(NdotH, roughness);
+	float G = gaSchlickGGX(NdotL, NdotV, roughness);
+    vec3 specularBRDF = (F * D * G) / max(0.0001, 4.0 * NdotL * NdotV);
+
+	vec3 kd = mix(vec3(1.0) - F, vec3(0.0), metalness);
+	vec3 diffuseBRDF = kd * albedo / pi;
+	
+	float shadow = shadow(pos + N * 0.01, L);
+    vec3 irradiance = lightColor * NdotL * shadow;
+
+	return (diffuseBRDF + specularBRDF) * irradiance;
+}
+
 vec3 samplingMarch(vec3 ro, vec3 rd) 
 {
 	vec3 sampleCol = sky(lightDir, rd, ro);
@@ -385,10 +486,12 @@ vec3 samplingMarch(vec3 ro, vec3 rd)
 		
 		if (dist < 0.001) 
 		{
+			vec3 n = getNormal(rayPos);
 			vec3 tc = vec3(1.);
-			vec3 fc = vec3(0.);
-			float l = abs(0. - rayPos.y)*0.;
-			sampleCol = mix(tc, fc, l);
+			// tc += directLighting(rayPos, vec3(1.), 0., 0., n, -rd, lightDir, vec3(1.0, 0.98, 0.95) * 100.);
+			vec3 fc = sky(lightDir, rd, ro);
+			float l = pow(exp(-abs(rayPos.y)),0.08);
+			sampleCol = mix(fc, tc, l);
 		}
 
 		rayDepth += dist;

@@ -156,19 +156,32 @@ vec2 pMod2(inout vec2 p, float size)
 	return c;
 }
 
+float lisp(vec3 p, float r, float s)
+{
+	return sdSphere(opRepLim(p,r, vec3(1.0, 1.0, 1.0)),s);
+}
+
 //https://www.shadertoy.com/view/4dcBRN
 float randBubble(vec3 p)
 {
 	//     vec2 index = pMod2(p.xz, 5.0);
     // float valNoise = noise_(index);
 
-	float d = sdSphere(opRepLim(p,3., vec3(1.)), 0.5);
-	// for(int i = 0; i < 3; i++)
-	// {
-	// 	p.x += float(i);
-	// 	p.y += float(i)*1.2;
-	// 	d = min(d, sdSphere(rep(p,3.), 0.5));
-	// }
+	float d = lisp(p, 15., 1.5);
+
+	for(int i = 0; i < 3; i++)
+	{
+		float fi = float(i);
+		float rn1 = (rand_(vec2(fi, fi))+1.)*10.;
+		float rn2 = (rand_(vec2(fi+2432., fi+1235.))+1.)*10.;
+		float rn3 = (rand_(vec2(fi+213., fi-24214.))+1.)*10.;
+
+		vec3 q = vec3(p.x+rn1, 
+					p.y+rn2, 
+					p.z+rn3);
+		d = min(d, lisp(q, 15., 1.5));
+	}
+
     return d;
 	// return sdBubble(q, 2.0*e*s);
 }
@@ -341,30 +354,30 @@ vec3 march(vec3 ro, vec3 rd)
 
 			float f = schlickFresnel(rI, max(0.0, dot(-rd, n)));
 
-			vec3 spec = f * lightColor;// * pow(max(0.0, dot(refl, lightDir)), 4.0);
-			return spec;// + substanceColor * samplingMarch(rayPos, refr);
+			vec3 spec = f * lightColor * pow(max(0.0, dot(refl, lightDir)), .5);
+			return spec + substanceColor * samplingMarch(rayPos, refr);
 			
-			// vec3 op = rayPos + refr * 100.0;
-			// for (int j = 0; j < 32; j++) 
-			// {
-			// 	float d = map(op);
-			// 	op += -refr * d;
-			// 	if (d < 0.001 && dist < dist2) 
-			// 	{
-			// 		vec3 n2 = getNormal(op);
-			// 		vec3 refr_2 = refract(refr, -n2, rI);
+			vec3 op = rayPos + refr * 100.0;
+			for (int j = 0; j < 32; j++) 
+			{
+				float d = map(op);
+				op += -refr * d;
+				if (d < 0.001 && dist < dist2) 
+				{
+					vec3 n2 = getNormal(op);
+					vec3 refr_2 = refract(refr, -n2, rI);
 
-			// 		if (length(refr_2) > 0.01) 
-			// 		{
-			// 			rayCol = spec + substanceColor * samplingMarch(op, refr_2);
-			// 			return rayCol;
-			// 		} else {
-			// 			vec3 refl_2 = reflect(refr, -n2);
-			// 			rayCol = spec + substanceColor * samplingMarch(op, refl_2);
-			// 			return rayCol;
-			// 		}
-			// 	}
-			// }
+					if (length(refr_2) > 0.01) 
+					{
+						rayCol = spec + substanceColor * samplingMarch(op, refr_2);
+						return rayCol;
+					} else {
+						vec3 refl_2 = reflect(refr, -n2);
+						rayCol = spec + substanceColor * samplingMarch(op, refl_2);
+						return rayCol;
+					}
+				}
+			}
 		}
 
 		rayDepth += dist;

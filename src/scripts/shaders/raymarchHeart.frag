@@ -1,11 +1,16 @@
 precision highp float;
 
 uniform float u_time;
+uniform float u_time_date;
 uniform vec2  u_resolution;
 uniform int depthBool;//0 == false, 1 == true
 
 vec2 resolution=u_resolution;
-float time=u_time;
+float time=u_time* 0.001;
+
+float time_hour = floor(u_time_date/10000.);
+float time_minutes = floor((u_time_date - time_hour*10000.) / 100.);
+float time_seconds = floor((u_time_date - time_hour*10000. - time_minutes*100.));
 
 float pi=acos(-1.);
 
@@ -71,9 +76,9 @@ float sceneHeart(vec3 p, float size)
     p.z -= 5.;
 
     float d1 = sphere(p + vec3(3. + cos(time), 0.5 - 0.5*sin(time),0.), size * 0.8);
-    float d2 = spDisplace(p, size, vec3(10, 10,10.));//sphere(p, size);
+    float d2 = spDisplace(p, size, vec3(time_hour));//sphere(p, size);
 
-    d = mix(d1, d2, smoothstep(0.3, 0.7, sin(u_time / 1.5)));
+    d = mix(d1, d2, smoothstep(0.3, 0.7, sin(u_time* 0.001 / 1.5)));
 
     return d;
 }
@@ -99,38 +104,42 @@ float load(vec3 p)
 {
     float d;
 
-    vec2 s1 = vec2(5., 0.15);
-    vec2 s2 = vec2(5., 0.05);
-    vec2 s3 = vec2(8., 1.5);
+    float sf = floor(time_seconds/10.);
+
+    vec2 s1 = vec2(1.+sf/10., 0.15);
+    vec2 s2 = vec2(0.3+sf/10., 0.01);
+    vec2 s3 = vec2(2.+sf/3., 0.5);
 
     vec3 p1;
     p1 = abs(p);
-    p1.x -= 1.5;
+    p1.x -= 0.5;
     p1.y += 0.3;
-    p1.xy *= rot(0.25 * pi);
+    p1.xy *= rot(0.25 * pi*sf);
+
+
 
     vec3 p2;
     p2 = abs(p);
-    float dx = box(rep(p1, 7.), vec3(s1.xyy));
-    float dy = box(rep(p1, 6.), vec3(s1.yxy));
+    float dx = box(rep(p1, 7.-sf), vec3(s1.xyy));
+    float dy = box(rep(p1, 6.+sf), vec3(s1.yxy));
     float dz = box(rep(p2, 112.), vec3(s2.yyx));
 
     vec3 p3;
     p3 = p;
-    p3.xy *= rot(0.5 * pi);
-    float dx_a = box(rep(p3, 9.), vec3(s1.xyy));
-    float dy_a = box(rep(p3, 5.), vec3(s1.yxy));
+    p3.xy *= rot(0.5*sf * pi);
+    float dx_a = box(rep(p3, 9.+sf), vec3(s1.xyy));
+    float dy_a = box(rep(p3, 5.-sf), vec3(s1.yxy));
     float dz_a = box(rep(p3, 82.), vec3(s1.yyx));
 
     vec3 p4 = p;
     // p4.xy *= 4.;
-    p4.x += sin(p4.z + time) * .8;
-    p4.y += cos(p4.z + time) * .8;
+    p4.x += sin(p4.z ) * .8;
+    p4.y += cos(p4.z ) * .8;
     float d4 = length(p4.xy) - abs(sin(time)) * 0.1;
 
     vec3 p5 = p;
     p5 = abs(p5);
-    p5.x += 0.3 * sin(time * 2.) + 5.;
+    p5.x += 0.3 * sin(time * 1.) + 5.;
     p5.y += 0.;
     float dx_b = box(rep(p5, 9.), vec3(s3.xyy));
     float dy_b = box(rep(p5, 5.), vec3(s3.yxy));
@@ -170,10 +179,10 @@ float map(vec3 p)
 {
     float m;
 
-    float t = u_time / 2.;
+    float t = u_time*0.001 ;
     float tt = t - floor(t);
-    float size = exp(abs(tt - 0.5) * -1. * 15.)/5.;
-    size += 2.;
+    float size = exp(abs(tt - 0.5) * -1. * 15.)/2.;
+    size += 2.5;
 
     float dh = sceneHeart(p, size);
     float dl = sceneLoad(p);
@@ -196,7 +205,7 @@ vec3 rayMarching(vec3 ro, vec3 rd)
     ro.z += rootSpeed;
 
     float sceneDist;
-    float rayDepth = 0.;
+    float rayDepth = floor(time_minutes/10.);
 
     for(int i = 0; i < 100; i++) 
     {
@@ -248,7 +257,12 @@ void main()
 {
     vec2 p = (gl_FragCoord.xy * 2. - resolution) / min(resolution.x, resolution.y);
     
-    vec3 ro = vec3(0., 0., -25.);
+    float mf = time_minutes;
+    // mix(25., -25., step(mf, 30.))
+    //  floor(mf/10.)*5.
+    
+    vec3 ro = vec3((mf - floor(mf/10.)*10.), floor(mf/10.), -25.);
+    // vec3 ro = vec3(0.,0.,-25.);
     ro += camOffset;
 
     vec3 ta = vec3(0.);
@@ -259,7 +273,7 @@ void main()
     vec3 x = normalize(cross(z, up));
     vec3 y = normalize(cross(x, z));
 
-    vec3 rd = normalize(x * p.x + y * p.y + z * 2.5);
+    vec3 rd = normalize(x * p.x + y * p.y + z * 2.5 );
 
     vec3 c = rayMarching(ro, rd);
 

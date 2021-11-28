@@ -36,7 +36,7 @@ void main()
 
     vec3 color = vec3(1.0, 0.4824, 0.0);
 
-    vec2 pos = vec2(uv.x*5.0 + time * -1., uv.y * 5.);
+    vec2 pos = vec2(uv.x*5.0 + time * -1.*0.001, uv.y * 5.);
 
     color = vec3( noise(pos)*.5+.5 );
     // color *= color;

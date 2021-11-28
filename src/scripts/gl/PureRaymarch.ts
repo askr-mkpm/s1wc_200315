@@ -37,8 +37,10 @@ export class PureRaymarch
 {
     constructor(canvas: HTMLCanvasElement)
     {
-        cw = window.innerWidth;
-        ch = window.innerHeight;
+        cw = 250;
+        ch = 500; 
+        // cw = window.innerWidth;
+        // ch = window.innerHeight;
         canvas.width = cw;
         canvas.height = ch;
 
@@ -71,7 +73,7 @@ export class PureRaymarch
         const pMatrix = m.identity(m.create());
         const tmpMatrix = m.identity(m.create());
         const mvpMatrix = m.identity(m.create());
-        m.lookAt([0.0, 0.0, 5.0], [0, 0, 0], [0, 1, 0], vMatrix);
+        m.lookAt([0.0, 0.0, 3.3], [0, 0, 0], [0, 1, 0], vMatrix);
         m.perspective(45, cw / ch, 0.1, 10.0, pMatrix);
         m.multiply(pMatrix, vMatrix, tmpMatrix);
 
@@ -84,7 +86,7 @@ export class PureRaymarch
 
         startTime = new Date().getTime();
 
-        let renderRaymarch = function(target, time, width, height)
+        let renderRaymarch = function(target, time,time_date, width, height)
         {
             gl.bindFramebuffer(gl.FRAMEBUFFER, target);
 
@@ -95,7 +97,8 @@ export class PureRaymarch
             
             pb.setAttribute(rayPrg, quadVboList, 'position', 3);
 
-            pb.uniform1f(rayPrg, 'u_time', time);
+            pb.uniform1f(rayPrg, 'u_time', time); 
+            pb.uniform1f(rayPrg, 'u_time_date', time_date);
             pb.uniform2fv(rayPrg, 'u_resolution',[width, height]);
 
             gl.drawArrays( gl.TRIANGLE_STRIP, 0, 4 );
@@ -121,7 +124,7 @@ export class PureRaymarch
             gl.drawArrays( gl.TRIANGLE_STRIP, 0, 4 );
         }
 
-        let renderByob = function(target, width, height)
+        let renderByob = function(target, time_date, width, height)
         {
             gl.bindFramebuffer(gl.FRAMEBUFFER, target);
 
@@ -133,6 +136,7 @@ export class PureRaymarch
             pb.setAttribute(s1_byobPrg, quadVboList, 'position', 3);
 
             pb.uniform2fv(s1_byobPrg, 'u_resolution',[width, height]);
+            pb.uniform1f(s1_byobPrg, 'u_time_date', time_date);
 
             gl.drawArrays( gl.TRIANGLE_STRIP, 0, 4 );
         }
@@ -265,14 +269,22 @@ export class PureRaymarch
 
         let render = function()
         {
-            let time = (new Date().getTime() - startTime) * 0.001;
+            let time = (new Date().getTime() - startTime);
+            // console.log(time)
+
+            let date = new Date();
+            let time_hour = date.getHours();
+            let time_minutes = date.getMinutes();
+            let time_seconds = date.getSeconds();
+            let time_date = time_seconds + time_minutes*100 + time_hour*10000;
+            // console.log(time_date);
 
             gl.disable(gl.DEPTH_TEST);
 
             renders2Bg(s2_NoiseBuffer.f, cw, ch, time);
             renderShad(s2_NoiseBuffer.f, cw, ch);
-            renderByob(s1_byobBuffer.f, cw, ch);
-            renderRaymarch(s1_rayBuffer.f, time, cw, ch);
+            renderByob(s1_byobBuffer.f,time_date, cw, ch);
+            renderRaymarch(s1_rayBuffer.f, time, time_date, cw, ch);
             renderSobel(s1_sobelBuffer.f, s1_rayBuffer.t, cw, ch);
             renders1main(s1_mainBuffer.f, s1_byobBuffer.t, s1_sobelBuffer.t, cw, ch);
             renders1quad(s2_NoiseBuffer.f, s1_mainBuffer.t, cw, ch);

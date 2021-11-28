@@ -10,7 +10,8 @@ void main(void)
     pos.x *= r;
     // pos.y *= r * 0.009 + 1.;
 
-    pos.xy *= 1.03;
+    pos.x *= 1.03;
+    pos.y *= 1.02;
     pos.y *= 1. + pow(resolution.x / 10000., 2.2);
     gl_Position = mvpMatrix * vec4(pos, 1.0);
 }

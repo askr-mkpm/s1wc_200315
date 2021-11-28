@@ -1,10 +1,13 @@
 precision highp float;
 
 uniform vec2 u_resolution;
+uniform float u_time_date;
 
 vec2 resolution = u_resolution;
 
 const float pi = acos(-1.);
+
+float time_hour = floor(u_time_date/10000.);
 
 float rand(vec2 co)
 {
@@ -64,6 +67,24 @@ vec3 byob(vec2 cuv, vec3 col_1, vec3 col_2)
     return col;
 }
 
+vec3 hsv2rgb(vec3 c)
+{
+    vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+    vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+    return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+}
+
+vec3 rgb2hsv(vec3 c)
+{
+    vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
+    vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
+    vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
+
+    float d = q.x - min(q.w, q.y);
+    float e = 1.0e-10;
+    return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
+}
+
 void main() 
 {
     vec2 p = (gl_FragCoord.xy * 2. - resolution) / min(resolution.x, resolution.y);
@@ -82,6 +103,9 @@ void main()
     col *= col_3;
     col *= col_4;
     col.rgb += vec3(0.09);
+
+	vec3 col_hsv = rgb2hsv(col.rgb);
+	vec4 col_s = vec4(hsv2rgb(vec3(col_hsv.x, 0., col_hsv.z-0.2)), 1.);
     
-    gl_FragColor = col;
+    gl_FragColor = mix(col, col_s, step(time_hour,12.));
 }
